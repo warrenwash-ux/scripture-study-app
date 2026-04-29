@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight — Scripture Study</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --navy: #0d1117; --navy-mid: #161d27; --navy-light: #1e2a38;
+    --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: #8a6f30;
+    --text: #d4c9b0; --text-dim: #7a8090;
+    --border: rgba(201,168,76,0.15); --border-strong: rgba(201,168,76,0.35);
+    --hl-yellow: rgba(255,220,50,0.35); --hl-green: rgba(80,200,120,0.3);
+    --hl-blue: rgba(80,160,220,0.3); --hl-pink: rgba(230,100,120,0.3); --hl-purple: rgba(170,100,220,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--navy); color: var(--text); font-family: 'Crimson Pro', Georgia, serif; font-size: 18px; min-height: 100vh; overflow-x: hidden; user-select: text; }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 20% 0%, rgba(201,168,76,0.04) 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, rgba(74,127,165,0.04) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+
+  /* HEADER */
+  header { position: relative; z-index: 10; padding: 16px 24px; border-bottom: 1px solid var(--border-strong); background: linear-gradient(180deg, rgba(201,168,76,0.06) 0%, transparent 100%); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand-title { font-family: 'Cinzel', serif; font-size: 17px; font-weight: 600; color: var(--gold); letter-spacing: 0.1em; }
+  .brand-sub { font-family: 'Cormorant Garamond', serif; font-size: 12px; font-style: italic; color: var(--text-dim); margin-top: 2px; }
+  .header-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .vol-badge { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; padding: 5px 11px; border: 1px solid var(--border-strong); border-radius: 2px; color: var(--text-dim); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .vol-badge.active { color: var(--gold); border-color: var(--gold-dim); background: rgba(201,168,76,0.08); }
+  .vol-badge:hover { color: var(--gold-light); border-color: var(--gold); }
+  .loaded-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4caf50; margin-left: 4px; vertical-align: middle; }
+  .api-btn { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.08em; padding: 5px 13px; border: 1px solid var(--gold-dim); border-radius: 2px; color: var(--gold); cursor: pointer; transition: all 0.2s; white-space: nowrap; background: rgba(201,168,76,0.08); }
+  .api-btn:hover { background: rgba(201,168,76,0.18); }
+  .api-btn.set { border-color: #4caf50; color: #4caf50; background: rgba(76,175,80,0.08); }
+
+  /* LAYOUT */
+  .app { position: relative; z-index: 1; display: grid; grid-template-columns: 270px 1fr 270px; height: calc(100vh - 69px); }
+
+  /* SIDEBAR */
+  .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .search-area { padding: 12px; border-bottom: 1px solid var(--border); }
+  .search-wrap { position: relative; }
+  .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--gold-dim); font-size: 13px; }
+  #searchInput { width: 100%; background: var(--navy-light); border: 1px solid var(--border-strong); border-radius: 3px; padding: 8px 9px 8px 28px; color: var(--text); font-family: 'Crimson Pro', serif; font-size: 15px; outline: none; }
+  #searchInput::placeholder { color: var(--text-dim); font-style: italic; }
+  #searchInput:focus { border-color: var(--gold-dim); }
+  .sidebar-status { padding: 7px 14px; font-size: 12px; color: var(--text-dim); font-style: italic; border-bottom: 1px solid var(--border); background: rgba(201,168,76,0.03); display: flex; justify-content: space-between; align-items: center; }
+  .clear-btn { font-size: 11px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-family: 'Cinzel', serif; letter-spacing: 0.05em; }
+  .clear-btn:hover { color: #e06070; }
+  .entries-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .entries-list::-webkit-scrollbar { width: 3px; }
+  .entries-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+  .entry-item { padding: 8px 15px; cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; }
+  .entry-item:hover { background: rgba(201,168,76,0.06); border-left-color: var(--gold-dim); }
+  .entry-item.active { background: rgba(201,168,76,0.1); border-left-color: var(--gold); }
+  .entry-name { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 600; color: var(--text); }
+  .entry-item.active .entry-name { color: var(--gold-light); }
+  .alpha-divider { padding: 5px 15px 3px; font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.15em; color: var(--gold-dim); border-bottom: 1px solid var(--border); margin-top: 2px; }
+
+  /* MAIN */
+  .main { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--navy-mid); }
+  .tab { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; padding: 11px 18px; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; text-transform: uppercase; }
+  .tab:hover { color: var(--text); } .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .panel { display: none; flex: 1; overflow: hidden; }
+  .panel.active { display: flex; flex-direction: column; }
+
+  /* HIGHLIGHT TOOLBAR */
+  #hlToolbar { position: fixed; z-index: 200; background: var(--navy-mid); border: 1px solid var(--border-strong); border-radius: 4px; padding: 6px 10px; display: none; gap: 6px; align-items: center; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+  .hl-label { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.1em; color: var(--text-dim); }
+  .hl-swatch { width: 20px; height: 20px; border-radius: 3px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; flex-shrink: 0; }
+  .hl-swatch:hover { border-color: var(--gold); }
+  .hl-swatch.yellow { background: rgba(255,220,50,0.75); } .hl-swatch.green { background: rgba(80,200,120,0.75); }
+  .hl-swatch.blue { background: rgba(80,160,220,0.75); } .hl-swatch.pink { background: rgba(230,100,120,0.75); }
+  .hl-swatch.purple { background: rgba(170,100,220,0.75); }
+  .hl-divider { width: 1px; height: 16px; background: var(--border-strong); }
+  .hl-note-btn { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.08em; background: rgba(201,168,76,0.15); border: 1px solid var(--border-strong); color: var(--gold); border-radius: 2px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  .hl-note-btn:hover { background: rgba(201,168,76,0.3); }
+  mark.hl { border-radius: 2px; cursor: pointer; padding: 0 1px; }
+  mark.hl.yellow { background: var(--hl-yellow); } mark.hl.green { background: var(--hl-green); }
+  mark.hl.blue { background: var(--hl-blue); } mark.hl.pink { background: var(--hl-pink); }
+  mark.hl.purple { background: var(--hl-purple); }
+  mark.hl[data-has-note]::after { content: '✎'; font-size: 10px; color: var(--gold); vertical-align: super; margin-left: 1px; }
+
+  /* READ */
+  .reading-panel { flex: 1; overflow-y: auto; padding: 30px 38px; }
+  .reading-panel::-webkit-scrollbar { width: 3px; }
+  .reading-panel::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+  .entry-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+  .entry-title { font-family: 'Cinzel', serif; font-size: 24px; font-weight: 600; color: var(--gold-light); letter-spacing: 0.05em; margin-bottom: 4px; }
+  .entry-meta { font-size: 12px; color: var(--text-dim); font-style: italic; }
+  .entry-body { font-size: 18px; line-height: 1.9; color: var(--text); }
+  .entry-body p { margin-bottom: 13px; }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-dim); font-style: italic; font-size: 16px; gap: 8px; text-align: center; padding: 40px; }
+  .empty-icon { font-size: 28px; opacity: 0.4; }
+
+  /* LOAD */
+  .load-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px; text-align: center; }
+  .load-ornament { font-family: 'Cinzel', serif; font-size: 36px; color: var(--gold-dim); margin-bottom: 14px; opacity: 0.6; }
+  .load-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .load-desc { font-size: 15px; color: var(--text-dim); font-style: italic; max-width: 380px; line-height: 1.6; margin-bottom: 24px; }
+  .vol-load-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; max-width: 520px; margin-bottom: 16px; }
+  .vol-load-card { border: 2px dashed var(--border-strong); border-radius: 6px; padding: 22px 14px; cursor: pointer; transition: all 0.25s; background: rgba(201,168,76,0.02); position: relative; text-align: center; }
+  .vol-load-card:hover { border-color: var(--gold); background: rgba(201,168,76,0.06); }
+  .vol-load-card.loaded { border-style: solid; border-color: #4caf50; background: rgba(76,175,80,0.05); cursor: default; }
+  .vol-load-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .vol-load-card.loaded input { pointer-events: none; }
+  .vlc-icon { font-size: 26px; margin-bottom: 7px; display: block; }
+  .vlc-title { font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 4px; }
+  .vlc-status { font-size: 13px; color: var(--text-dim); font-style: italic; }
+  .vlc-status.ok { color: #4caf50; font-style: normal; }
+  .progress-wrap { width: 100%; max-width: 520px; display: none; margin-top: 8px; }
+  .progress-label { font-size: 13px; color: var(--text-dim); margin-bottom: 7px; font-style: italic; }
+  .progress-bar-bg { height: 3px; background: var(--navy-light); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); border-radius: 2px; transition: width 0.3s; width: 0%; }
+
+  /* CHAT */
+  .chat-messages { flex: 1; overflow-y: auto; padding: 18px 28px; display: flex; flex-direction: column; gap: 14px; }
+  .chat-messages::-webkit-scrollbar { width: 3px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+  .msg { max-width: 88%; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .msg-user { align-self: flex-end; } .msg-ai { align-self: flex-start; }
+  .msg-bubble { padding: 11px 14px; border-radius: 4px; font-size: 17px; line-height: 1.7; }
+  .msg-user .msg-bubble { background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); }
+  .msg-ai .msg-bubble { background: var(--navy-mid); border: 1px solid var(--border); }
+  .msg-label { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.12em; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; }
+  .msg-user .msg-label { text-align: right; }
+  .chat-input-area { border-top: 1px solid var(--border); padding: 11px 28px; display: flex; gap: 9px; align-items: flex-end; background: var(--navy-mid); }
+  #chatInput { flex: 1; background: var(--navy-light); border: 1px solid var(--border-strong); border-radius: 3px; padding: 9px 12px; color: var(--text); font-family: 'Crimson Pro', serif; font-size: 17px; outline: none; resize: none; min-height: 40px; max-height: 100px; line-height: 1.4; }
+  #chatInput::placeholder { color: var(--text-dim); font-style: italic; }
+  #chatInput:focus { border-color: var(--gold-dim); }
+  .send-btn { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); border: none; border-radius: 3px; padding: 9px 15px; color: var(--navy); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; height: 40px; white-space: nowrap; }
+  .send-btn:hover { opacity: 0.85; } .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chat-notice { padding: 6px 28px; font-size: 12px; color: var(--text-dim); font-style: italic; border-top: 1px solid var(--border); text-align: center; }
+
+  /* STUDY */
+  .study-panel { flex: 1; overflow-y: auto; padding: 22px 32px; }
+  .study-panel::-webkit-scrollbar { width: 3px; }
+  .study-panel::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+  .study-toolbar { display: flex; gap: 9px; margin-bottom: 18px; }
+  .study-input { flex: 1; background: var(--navy-light); border: 1px solid var(--border-strong); border-radius: 3px; padding: 9px 12px; color: var(--text); font-family: 'Crimson Pro', serif; font-size: 17px; outline: none; }
+  .study-input::placeholder { color: var(--text-dim); font-style: italic; }
+  .study-input:focus { border-color: var(--gold-dim); }
+  .study-btn { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); border: none; border-radius: 3px; padding: 9px 15px; color: var(--navy); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; white-space: nowrap; }
+  .study-btn:hover { opacity: 0.85; }
+  .study-card { background: var(--navy-mid); border: 1px solid var(--border); border-radius: 4px; padding: 16px 20px; margin-bottom: 12px; }
+  .study-card-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.12em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 9px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+  .study-card-body { font-size: 17px; line-height: 1.75; color: var(--text); }
+  .no-book-notice { text-align: center; padding: 36px 20px; color: var(--text-dim); font-style: italic; font-size: 16px; }
+
+  /* NOTES */
+  .notes-col { display: flex; flex-direction: column; overflow: hidden; background: var(--navy-mid); }
+  .notes-header { padding: 11px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(180deg,rgba(201,168,76,0.05) 0%,transparent 100%); }
+  .notes-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; }
+  .notes-count { font-size: 11px; color: var(--text-dim); font-style: italic; }
+  .notes-filter { display: flex; gap: 4px; padding: 7px 11px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .nf-chip { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.08em; padding: 3px 7px; border-radius: 2px; cursor: pointer; border: 1px solid var(--border); color: var(--text-dim); transition: all 0.15s; text-transform: uppercase; }
+  .nf-chip.all.active { background: var(--gold-dim); color: var(--navy); border-color: transparent; }
+  .nf-chip.yellow.active { background: rgba(255,220,50,0.8); color: #333; border-color: transparent; }
+  .nf-chip.green.active  { background: rgba(80,200,120,0.8); color: #333; border-color: transparent; }
+  .nf-chip.blue.active   { background: rgba(80,160,220,0.8); color: #fff; border-color: transparent; }
+  .nf-chip.pink.active   { background: rgba(230,100,120,0.8); color: #fff; border-color: transparent; }
+  .nf-chip.purple.active { background: rgba(170,100,220,0.8); color: #fff; border-color: transparent; }
+  .notes-list { flex: 1; overflow-y: auto; padding: 7px 0; }
+  .notes-list::-webkit-scrollbar { width: 3px; }
+  .notes-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+  .note-card { margin: 5px 9px; padding: 10px 12px; border-radius: 3px; border-left: 3px solid transparent; background: rgba(255,255,255,0.03); cursor: pointer; transition: background 0.15s; position: relative; }
+  .note-card:hover { background: rgba(255,255,255,0.06); }
+  .note-card.yellow { border-left-color: rgba(255,220,50,0.7); } .note-card.green { border-left-color: rgba(80,200,120,0.7); }
+  .note-card.blue { border-left-color: rgba(80,160,220,0.7); } .note-card.pink { border-left-color: rgba(230,100,120,0.7); }
+  .note-card.purple { border-left-color: rgba(170,100,220,0.7); }
+  .note-source { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+  .note-excerpt { font-family: 'Cormorant Garamond', serif; font-size: 13px; font-style: italic; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note-text { font-size: 13px; color: var(--gold-light); line-height: 1.5; margin-bottom: 4px; }
+  .note-date { font-size: 11px; color: var(--text-dim); font-style: italic; }
+  .note-delete { position: absolute; top: 7px; right: 7px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; opacity: 0; transition: opacity 0.15s; }
+  .note-card:hover .note-delete { opacity: 1; }
+  .note-delete:hover { color: #e06070; }
+  .notes-empty { padding: 22px 14px; text-align: center; color: var(--text-dim); font-style: italic; font-size: 14px; line-height: 1.7; }
+  .notes-new-btn { margin: 9px; padding: 9px; background: rgba(201,168,76,0.08); border: 1px dashed var(--border-strong); border-radius: 3px; color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s; text-align: center; text-transform: uppercase; }
+  .notes-new-btn:hover { background: rgba(201,168,76,0.14); color: var(--gold); }
+
+  /* NOTE MODAL */
+  .note-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+  .note-modal { background: var(--navy-mid); border: 1px solid var(--border-strong); border-radius: 6px; padding: 24px 28px; max-width: 460px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .nm-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+  .nm-title { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; color: var(--gold); letter-spacing: 0.08em; }
+  .nm-close { background: none; border: none; color: var(--text-dim); font-size: 17px; cursor: pointer; }
+  .nm-excerpt { font-family: 'Cormorant Garamond', serif; font-size: 14px; font-style: italic; color: var(--text-dim); line-height: 1.5; margin-bottom: 12px; padding: 8px 10px; border-left: 3px solid var(--gold-dim); background: rgba(201,168,76,0.05); border-radius: 2px; }
+  .nm-colors { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .nm-color-label { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; color: var(--text-dim); }
+  .nm-swatch { width: 22px; height: 22px; border-radius: 3px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
+  .nm-swatch:hover, .nm-swatch.selected { border-color: var(--gold); }
+  .nm-swatch.yellow { background: rgba(255,220,50,0.75); } .nm-swatch.green { background: rgba(80,200,120,0.75); }
+  .nm-swatch.blue { background: rgba(80,160,220,0.75); } .nm-swatch.pink { background: rgba(230,100,120,0.75); }
+  .nm-swatch.purple { background: rgba(170,100,220,0.75); }
+  #noteTextarea { width: 100%; background: var(--navy-light); border: 1px solid var(--border-strong); border-radius: 3px; padding: 10px 12px; color: var(--text); font-family: 'Crimson Pro', serif; font-size: 17px; outline: none; resize: vertical; min-height: 88px; line-height: 1.5; margin-bottom: 12px; }
+  #noteTextarea::placeholder { color: var(--text-dim); font-style: italic; }
+  #noteTextarea:focus { border-color: var(--gold-dim); }
+  .nm-actions { display: flex; gap: 9px; justify-content: flex-end; }
+  .nm-save { background: linear-gradient(135deg, var(--gold-dim), var(--gold)); border: none; border-radius: 3px; padding: 9px 18px; color: var(--navy); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; }
+  .nm-save:hover { opacity: 0.85; }
+  .nm-cancel { background: none; border: 1px solid var(--border-strong); border-radius: 3px; padding: 9px 13px; color: var(--text-dim); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.08em; cursor: pointer; }
+  .nm-cancel:hover { border-color: var(--gold-dim); color: var(--text); }
+
+  /* API MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 400; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal { background: var(--navy-mid); border: 1px solid var(--border-strong); border-radius: 6px; padding: 30px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .modal-title { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; color: var(--gold); margin-bottom: 8px; letter-spacing: 0.08em; }
+  .modal-desc { font-size: 15px; color: var(--text-dim); font-style: italic; line-height: 1.6; margin-bottom: 16px; }
+  .modal input { width: 100%; background: var(--navy-light); border: 1px solid var(--border-strong); border-radius: 3px; padding: 10px 12px; color: var(--text); font-family: 'Crimson Pro', serif; font-size: 16px; outline: none; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--gold-dim); }
+  .modal-btn { width: 100%; background: linear-gradient(135deg, var(--gold-dim), var(--gold)); border: none; border-radius: 3px; padding: 11px; color: var(--navy); font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.1em; cursor: pointer; }
+  .modal-btn:hover { opacity: 0.85; }
+
+  .thinking { display: flex; gap: 4px; align-items: center; padding: 5px 0; }
+  .dot { width: 5px; height: 5px; background: var(--gold-dim); border-radius: 50%; animation: pulse 1.2s infinite; }
+  .dot:nth-child(2){animation-delay:0.2s;} .dot:nth-child(3){animation-delay:0.4s;}
+  @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+
+<div id="hlToolbar">
+  <span class="hl-label">Highlight</span>
+  <div class="hl-swatch yellow" onclick="applyHighlight('yellow')"></div>
+  <div class="hl-swatch green"  onclick="applyHighlight('green')"></div>
+  <div class="hl-swatch blue"   onclick="applyHighlight('blue')"></div>
+  <div class="hl-swatch pink"   onclick="applyHighlight('pink')"></div>
+  <div class="hl-swatch purple" onclick="applyHighlight('purple')"></div>
+  <div class="hl-divider"></div>
+  <button class="hl-note-btn" onclick="openNoteModal()">+ Note</button>
+</div>
+
+<div class="note-modal-overlay" id="noteModalOverlay" style="display:none;">
+  <div class="note-modal">
+    <div class="nm-top"><div class="nm-title">Add Study Note</div><button class="nm-close" onclick="closeNoteModal()">✕</button></div>
+    <div class="nm-excerpt" id="nmExcerpt"></div>
+    <div class="nm-colors">
+      <span class="nm-color-label">Color:</span>
+      <div class="nm-swatch yellow selected" data-color="yellow" onclick="selectNoteColor(this)"></div>
+      <div class="nm-swatch green"  data-color="green"  onclick="selectNoteColor(this)"></div>
+      <div class="nm-swatch blue"   data-color="blue"   onclick="selectNoteColor(this)"></div>
+      <div class="nm-swatch pink"   data-color="pink"   onclick="selectNoteColor(this)"></div>
+      <div class="nm-swatch purple" data-color="purple" onclick="selectNoteColor(this)"></div>
+    </div>
+    <textarea id="noteTextarea" placeholder="Write your study note here…"></textarea>
+    <div class="nm-actions">
+      <button class="nm-cancel" onclick="closeNoteModal()">Cancel</button>
+      <button class="nm-save" onclick="saveNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="apiModal" style="display:none;">
+  <div class="modal">
+    <div class="modal-title">Anthropic API Key</div>
+    <div class="modal-desc">Stored in this browser session only. Sent directly to Anthropic — never saved on any server.</div>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-…" />
+    <button class="modal-btn" onclick="saveApiKey()">Save & Continue</button>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="brand-title">Insight on the Scriptures</div>
+    <div class="brand-sub">Personal Deep Study Companion</div>
+  </div>
+  <div class="header-right">
+    <div class="vol-badge active" id="v1badge">Vol. I <span id="v1dot" class="loaded-dot" style="display:none;"></span></div>
+    <div class="vol-badge" id="v2badge">Vol. II <span id="v2dot" class="loaded-dot" style="display:none;"></span></div>
+    <button class="api-btn" id="apiBtn" onclick="showApiModal()">Set API Key</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="search-area">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" placeholder="Search entries…" oninput="filterEntries()" />
+      </div>
+    </div>
+    <div class="sidebar-status" id="sidebarStatus">
+      <span id="statusText">Load a volume to begin</span>
+      <button class="clear-btn" onclick="clearVolumes()" id="clearBtn" style="display:none;">Clear All</button>
+    </div>
+    <div class="entries-list" id="entriesList"></div>
+  </aside>
+
+  <main class="main">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('read')">Read Entry</div>
+      <div class="tab" onclick="switchTab('chat')">AI Chat</div>
+      <div class="tab" onclick="switchTab('study')">Study Brief</div>
+      <div class="tab" onclick="switchTab('load')">Load Book</div>
+    </div>
+
+    <div class="panel active" id="panel-load">
+      <div class="load-panel">
+        <div class="load-ornament">✦</div>
+        <div class="load-title">Load Your Encyclopedia</div>
+        <div class="load-desc">Load each volume once — the text saves permanently in your browser. Both volumes stay loaded every time you return.</div>
+        <div class="vol-load-grid">
+          <div class="vol-load-card" id="vlc1">
+            <input type="file" accept=".pdf" onchange="handleFileSelect(event,1)" />
+            <span class="vlc-icon">📖</span>
+            <div class="vlc-title">Volume I</div>
+            <div class="vlc-status" id="vlc1status">Click to load PDF</div>
+          </div>
+          <div class="vol-load-card" id="vlc2">
+            <input type="file" accept=".pdf" onchange="handleFileSelect(event,2)" />
+            <span class="vlc-icon">📗</span>
+            <div class="vlc-title">Volume II</div>
+            <div class="vlc-status" id="vlc2status">Click to load PDF</div>
+          </div>
+        </div>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-label" id="progressLabel">Reading pages…</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-read">
+      <div class="reading-panel" id="readingPanel">
+        <div class="empty-state">
+          <span class="empty-icon">✦</span>
+          Select an entry from the sidebar to begin reading.<br>
+          <span style="font-size:14px;margin-top:6px;display:block;">Select any text to highlight or add a note.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-chat">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg msg-ai">
+          <div class="msg-label">Insight AI</div>
+          <div class="msg-bubble">Peace be with you. Load your encyclopedia volumes, then ask me about any person, place, concept, or passage — I will answer from the text itself.</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <textarea id="chatInput" placeholder="Ask about a person, place, or topic…" rows="1" onkeydown="handleChatKey(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendChat()">Ask</button>
+      </div>
+      <div class="chat-notice">Answers drawn from your loaded encyclopedia volumes</div>
+    </div>
+
+    <div class="panel" id="panel-study">
+      <div class="study-panel">
+        <div class="study-toolbar">
+          <input type="text" class="study-input" id="studyTopic" placeholder="Enter a topic, name, or passage…" onkeydown="if(event.key==='Enter')generateStudyBrief()" />
+          <button class="study-btn" onclick="generateStudyBrief()">Generate</button>
+        </div>
+        <div id="studyOutput"><div class="no-book-notice">Enter a topic above to generate a structured study brief.</div></div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="notes-col">
+    <div class="notes-header">
+      <div class="notes-title">Study Notes</div>
+      <div class="notes-count" id="notesCount">0 notes</div>
+    </div>
+    <div class="notes-filter">
+      <div class="nf-chip all active" onclick="filterNotes('all')">All</div>
+      <div class="nf-chip yellow" onclick="filterNotes('yellow')" style="background:rgba(255,220,50,0.2)">●</div>
+      <div class="nf-chip green"  onclick="filterNotes('green')"  style="background:rgba(80,200,120,0.2)">●</div>
+      <div class="nf-chip blue"   onclick="filterNotes('blue')"   style="background:rgba(80,160,220,0.2)">●</div>
+      <div class="nf-chip pink"   onclick="filterNotes('pink')"   style="background:rgba(230,100,120,0.2)">●</div>
+      <div class="nf-chip purple" onclick="filterNotes('purple')" style="background:rgba(170,100,220,0.2)">●</div>
+    </div>
+    <div class="notes-list" id="notesList">
+      <div class="notes-empty">Select text in any entry to highlight or add a note.</div>
+    </div>
+    <div class="notes-new-btn" onclick="openFreeNote()">+ New Free Note</div>
+  </aside>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let volumes = { 1: { text:'', entries:[] }, 2: { text:'', entries:[] } };
+let activeEntry = null;
+let apiKey = sessionStorage.getItem('insightApiKey') || '';
+let chatHistory = [];
+let notes = JSON.parse(localStorage.getItem('insightNotes') || '[]');
+let activeFilter = 'all';
+let pendingSelection = null;
+let pendingNoteColor = 'yellow';
+let savedRange = null;
+let db = null;
+
+// ── INDEXEDDB ──
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('InsightStudy', 1);
+    req.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains('vols')) e.target.result.createObjectStore('vols'); };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbSet(k, v) {
+  return new Promise((res, rej) => { const tx = db.transaction('vols','readwrite'); tx.objectStore('vols').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+}
+function dbGet(k) {
+  return new Promise((res, rej) => { const tx = db.transaction('vols','readonly'); const r = tx.objectStore('vols').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+}
+
+async function initDB() {
+  try {
+    await openDB();
+    let anyLoaded = false;
+    for (const v of [1,2]) {
+      const saved = await dbGet('vol'+v);
+      if (saved) {
+        volumes[v].text = saved;
+        parseEntries(v);
+        markLoaded(v);
+        anyLoaded = true;
+      }
+    }
+    renderCombined();
+    updateStatus();
+    if (anyLoaded) switchTab('read');
+  } catch(e) { console.warn('IndexedDB unavailable', e); }
+}
+
+// ── TEXT FIX ──
+// Core fix: PDF.js extracts spaced chars like "A b r a h a m" — collapse them
+function fixSpacedChars(text) {
+  const lines = text.split('\n');
+  return lines.map(line => {
+    const words = line.split(' ');
+    if (words.length < 6) return line;
+    const singles = words.filter(w => w.length === 1 && /[A-Za-z]/.test(w)).length;
+    if (singles / words.length < 0.45) return line;
+    // Collapse: group consecutive single chars, preserve multi-char words with spaces
+    let out = '', i = 0;
+    while (i < words.length) {
+      if (words[i].length === 1 && /[A-Za-z,.\-'"]/.test(words[i])) {
+        let chunk = words[i];
+        while (i+1 < words.length && words[i+1].length <= 2 && /^[A-Za-z,.\-'";:!?0-9]$/.test(words[i+1])) { i++; chunk += words[i]; }
+        out += (out ? ' ' : '') + chunk;
+      } else {
+        out += (out ? ' ' : '') + words[i];
+      }
+      i++;
+    }
+    return out;
+  }).join('\n');
+}
+
+function cleanText(raw) {
+  let t = fixSpacedChars(raw);
+  t = t.replace(/-\n\s*/g, '');           // hyphenated line breaks
+  t = t.replace(/[ \t]{2,}/g, ' ');       // multiple spaces
+  t = t.replace(/\f/g, '\n\n');           // form feeds
+  return t.trim();
+}
+
+// ── PDF LOAD ──
+function handleFileSelect(e, vol) { const f = e.target.files[0]; if (f) loadPDF(f, vol); }
+
+async function loadPDF(file, vol) {
+  const pw = document.getElementById('progressWrap');
+  const pf = document.getElementById('progressFill');
+  const pl = document.getElementById('progressLabel');
+  pw.style.display = 'block'; pl.textContent = `Loading Volume ${vol}…`; pf.style.width = '0%';
+  try {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    const total = pdf.numPages;
+    let raw = '';
+    for (let i = 1; i <= total; i++) {
+      const page = await pdf.getPage(i);
+      const ct = await page.getTextContent({ normalizeWhitespace: true, disableCombineTextItems: false });
+      // Use position-aware text building
+      let pageText = '';
+      let prevY = null, prevX = null;
+      for (const item of ct.items) {
+        if (!item.str) continue;
+        const x = item.transform[4], y = item.transform[5];
+        if (prevY !== null && Math.abs(y - prevY) > 4) pageText += '\n';
+        else if (prevX !== null && x - prevX > 6) pageText += ' ';
+        pageText += item.str;
+        prevX = x + (item.width || 0);
+        prevY = y;
+      }
+      raw += pageText + '\n';
+      pf.style.width = Math.round((i/total)*100) + '%';
+      pl.textContent = `Reading page ${i} of ${total}…`;
+    }
+    volumes[vol].text = cleanText(raw);
+    pl.textContent = 'Parsing entries…';
+    parseEntries(vol);
+    if (db) { await dbSet('vol'+vol, volumes[vol].text); }
+    pl.textContent = `✓ Volume ${vol} saved — ${volumes[vol].entries.length} entries found`;
+    markLoaded(vol);
+    renderCombined();
+    updateStatus();
+    switchTab('read');
+  } catch(err) { pl.textContent = 'Error loading PDF. Try again.'; console.error(err); }
+}
+
+// ── PARSE ──
+function parseEntries(vol) {
+  const lines = volumes[vol].text.split('\n');
+  const map = {};
+  let cur = null, buf = [];
+  const isHead = l => {
+    const c = l.trim();
+    if (c.length < 2 || c.length > 65) return false;
+    if (/^[A-Z][A-Z\s,\-''()\.]{2,}$/.test(c) && /[A-Z]{2}/.test(c)) return true;
+    if (/^[A-Z][a-z]{1,}/.test(c) && c.split(' ').length <= 5 && !/[.?!,;]$/.test(c) && c.length < 45) return true;
+    return false;
+  };
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    if (isHead(t)) {
+      if (cur && buf.length > 1) map[cur] = buf.join(' ').replace(/\s+/g,' ').trim();
+      cur = t; buf = [];
+    } else if (cur) buf.push(t);
+  }
+  if (cur && buf.length) map[cur] = buf.join(' ').replace(/\s+/g,' ').trim();
+
+  let parsed = Object.entries(map).map(([name,text]) => ({name,text,vol}));
+  if (parsed.length < 5) {
+    // Fallback: chunk by ~500 words
+    const words = volumes[vol].text.split(/\s+/);
+    parsed = [];
+    for (let i = 0; i < words.length; i += 500) {
+      const chunk = words.slice(i,i+500).join(' ');
+      parsed.push({name:`Vol. ${vol} — Section ${Math.floor(i/500)+1}`, text:chunk, vol});
+    }
+  }
+  volumes[vol].entries = parsed.sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function getAllEntries() { return [...volumes[1].entries, ...volumes[2].entries]; }
+function renderCombined() { renderEntries(getAllEntries().sort((a,b)=>a.name.localeCompare(b.name))); }
+
+function renderEntries(list) {
+  const el = document.getElementById('entriesList');
+  if (!list.length) { el.innerHTML='<div style="padding:14px;color:var(--text-dim);font-style:italic;font-size:14px;text-align:center;">No entries found</div>'; return; }
+  let html='', last='';
+  for (const e of list) {
+    const L = e.name[0].toUpperCase();
+    if (L !== last && /[A-Z]/.test(L)) { html+=`<div class="alpha-divider">${L}</div>`; last=L; }
+    const vbadge = getAllEntries().filter(x=>x.vol===2).length > 0 ? (e.vol===2?'<span style="font-size:9px;color:var(--text-dim);font-family:\'Cinzel\',serif;margin-left:3px;">II</span>':'') : '';
+    html+=`<div class="entry-item" onclick="openEntry(${JSON.stringify(e.name)},${e.vol})" id="ei-${escId(e.name+e.vol)}"><span class="entry-name">${esc(e.name)}${vbadge}</span></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escId(s) { return s.replace(/[^a-zA-Z0-9]/g,'_').substring(0,32); }
+
+function filterEntries() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const all = getAllEntries();
+  renderEntries(q ? all.filter(e => e.name.toLowerCase().includes(q) || e.text.toLowerCase().includes(q)) : all.sort((a,b)=>a.name.localeCompare(b.name)));
+}
+
+// ── OPEN ENTRY ──
+function openEntry(name, vol) {
+  const entry = volumes[vol].entries.find(e=>e.name===name);
+  if (!entry) return;
+  activeEntry = entry;
+  document.querySelectorAll('.entry-item').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('ei-'+escId(name+vol));
+  if (el) { el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+  const text = entry.text.length > 10000 ? entry.text.substring(0,10000)+'…' : entry.text;
+  const paras = text.split(/\n{2,}|\s{5,}/).filter(p=>p.trim().length>20).map(p=>`<p>${esc(p.trim())}</p>`).join('') || `<p>${esc(text)}</p>`;
+  document.getElementById('readingPanel').innerHTML = `
+    <div class="entry-header">
+      <div class="entry-title">${esc(entry.name)}</div>
+      <div class="entry-meta">Insight on the Scriptures · Volume ${vol} · Select text to highlight or annotate</div>
+    </div>
+    <div class="entry-body" id="entryBody">${paras}</div>`;
+  switchTab('read');
+}
+
+// ── TABS ──
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  const idx = ['read','chat','study','load'].indexOf(name);
+  if (idx >= 0) document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+
+function markLoaded(vol) {
+  document.getElementById('v'+vol+'dot').style.display = 'inline-block';
+  const card = document.getElementById('vlc'+vol);
+  const status = document.getElementById('vlc'+vol+'status');
+  card.classList.add('loaded');
+  status.textContent = '✓ Loaded & saved';
+  status.className = 'vlc-status ok';
+}
+
+function updateStatus() {
+  const v1 = volumes[1].entries.length, v2 = volumes[2].entries.length, total = v1+v2;
+  const txt = document.getElementById('statusText');
+  const btn = document.getElementById('clearBtn');
+  if (total > 0) {
+    const parts = []; if(v1) parts.push(`Vol. I: ${v1}`); if(v2) parts.push(`Vol. II: ${v2}`);
+    txt.textContent = parts.join(' · ') + ' entries'; btn.style.display='block';
+  } else { txt.textContent='Load a volume to begin'; btn.style.display='none'; }
+}
+
+async function clearVolumes() {
+  if (!confirm('Clear saved volumes? You will need to reload the PDFs.')) return;
+  volumes = {1:{text:'',entries:[]},2:{text:'',entries:[]}};
+  if (db) { const tx=db.transaction('vols','readwrite'); tx.objectStore('vols').delete('vol1'); tx.objectStore('vols').delete('vol2'); }
+  [1,2].forEach(v=>{
+    document.getElementById('v'+v+'dot').style.display='none';
+    document.getElementById('vlc'+v).classList.remove('loaded');
+    document.getElementById('vlc'+v+'status').textContent='Click to load PDF';
+    document.getElementById('vlc'+v+'status').className='vlc-status';
+  });
+  renderEntries([]); updateStatus(); switchTab('load');
+}
+
+// ── HIGHLIGHT TOOLBAR ──
+const hlToolbar = document.getElementById('hlToolbar');
+document.addEventListener('mouseup', e => {
+  if (hlToolbar.contains(e.target)) return;
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.toString().trim()) { if(!hlToolbar.contains(e.target)) hideToolbar(); return; }
+  const body = document.getElementById('entryBody');
+  if (!body || !body.contains(sel.anchorNode)) { hideToolbar(); return; }
+  savedRange = sel.getRangeAt(0).cloneRange();
+  pendingSelection = {text:sel.toString().trim(), entry:activeEntry?.name||'', vol:activeEntry?.vol||1};
+  const rect = sel.getRangeAt(0).getBoundingClientRect();
+  hlToolbar.style.display = 'flex';
+  hlToolbar.style.top = (rect.top + window.scrollY - 50) + 'px';
+  hlToolbar.style.left = Math.max(8, rect.left + rect.width/2 - 120) + 'px';
+});
+document.addEventListener('mousedown', e => {
+  if (!hlToolbar.contains(e.target) && !document.getElementById('noteModalOverlay').contains(e.target))
+    setTimeout(() => { const s=window.getSelection(); if(!s||s.isCollapsed) hideToolbar(); }, 100);
+});
+function hideToolbar() { hlToolbar.style.display='none'; }
+
+function applyHighlight(color) {
+  if (!savedRange) return;
+  const mark = document.createElement('mark');
+  mark.className = 'hl '+color;
+  try {
+    savedRange.surroundContents(mark);
+    mark.addEventListener('click', () => { const p=mark.parentNode; while(mark.firstChild) p.insertBefore(mark.firstChild,mark); p.removeChild(mark); if(mark.dataset.noteId){notes=notes.filter(n=>n.id!==mark.dataset.noteId);saveNotes();renderNotes();} });
+  } catch(e) {}
+  window.getSelection().removeAllRanges(); hideToolbar();
+}
+
+function openNoteModal(color='yellow') {
+  pendingNoteColor = color;
+  document.getElementById('nmExcerpt').textContent = pendingSelection ? `"${pendingSelection.text.substring(0,180)}${pendingSelection.text.length>180?'…':''}"` : '"Free note"';
+  document.getElementById('noteTextarea').value = '';
+  document.querySelectorAll('.nm-swatch').forEach(s=>{s.classList.remove('selected');if(s.dataset.color===color)s.classList.add('selected');});
+  document.getElementById('noteModalOverlay').style.display = 'flex';
+  setTimeout(()=>document.getElementById('noteTextarea').focus(), 50);
+}
+function closeNoteModal() { document.getElementById('noteModalOverlay').style.display='none'; }
+function selectNoteColor(el) { document.querySelectorAll('.nm-swatch').forEach(s=>s.classList.remove('selected')); el.classList.add('selected'); pendingNoteColor=el.dataset.color; }
+
+function saveNote() {
+  const text = document.getElementById('noteTextarea').value.trim();
+  if (!text) { closeNoteModal(); return; }
+  const note = {id:'note-'+Date.now(), text, excerpt:pendingSelection?.text||'', entry:pendingSelection?.entry||(activeEntry?.name||'General'), color:pendingNoteColor, date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})};
+  if (savedRange) {
+    try {
+      const mark = document.createElement('mark');
+      mark.className = 'hl '+pendingNoteColor; mark.dataset.noteId=note.id; mark.dataset.hasNote='true'; mark.title=text;
+      savedRange.surroundContents(mark);
+      mark.addEventListener('click', ()=>alert(`📝 ${note.entry}\n\n"${note.excerpt}"\n\n${note.text}`));
+    } catch(e) {}
+  }
+  notes.unshift(note); saveNotes(); renderNotes();
+  closeNoteModal(); window.getSelection().removeAllRanges(); hideToolbar();
+}
+function saveNotes() { localStorage.setItem('insightNotes',JSON.stringify(notes)); document.getElementById('notesCount').textContent=notes.length+' note'+(notes.length!==1?'s':''); }
+function openFreeNote() { pendingSelection=null; savedRange=null; openNoteModal('yellow'); }
+
+function filterNotes(color) {
+  activeFilter = color;
+  document.querySelectorAll('.nf-chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.nf-chip.'+color)?.classList.add('active');
+  renderNotes();
+}
+
+function renderNotes() {
+  const list = document.getElementById('notesList');
+  const filtered = activeFilter==='all' ? notes : notes.filter(n=>n.color===activeFilter);
+  document.getElementById('notesCount').textContent = notes.length+' note'+(notes.length!==1?'s':'');
+  if (!filtered.length) { list.innerHTML=`<div class="notes-empty">${activeFilter==='all'?'No notes yet.<br><br>Select text in an entry to add one.':'No '+activeFilter+' notes.'}</div>`; return; }
+  list.innerHTML = filtered.map(n=>`<div class="note-card ${n.color}" onclick="jumpToEntry(${JSON.stringify(n.entry)})">
+    <div class="note-source">${esc(n.entry||'General')}</div>
+    ${n.excerpt?`<div class="note-excerpt">"${esc(n.excerpt.substring(0,100))}${n.excerpt.length>100?'…':''}"</div>`:''}
+    <div class="note-text">${esc(n.text)}</div>
+    <div class="note-date">${n.date}</div>
+    <button class="note-delete" onclick="deleteNote(event,'${n.id}')">✕</button>
+  </div>`).join('');
+}
+
+function deleteNote(e,id) { e.stopPropagation(); if(!confirm('Delete this note?'))return; notes=notes.filter(n=>n.id!==id); const m=document.querySelector(`mark[data-note-id="${id}"]`); if(m){const p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);} saveNotes();renderNotes(); }
+function jumpToEntry(name) { const e1=volumes[1].entries.find(e=>e.name===name); const e2=volumes[2].entries.find(e=>e.name===name); if(e1)openEntry(e1.name,1); else if(e2)openEntry(e2.name,2); }
+
+// ── API ──
+function showApiModal() { document.getElementById('apiModal').style.display='flex'; }
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (k) { apiKey=k; sessionStorage.setItem('insightApiKey',k); document.getElementById('apiBtn').classList.add('set'); document.getElementById('apiBtn').textContent='✓ Key Set'; }
+  document.getElementById('apiModal').style.display='none';
+}
+
+function handleChatKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} }
+
+async function sendChat() {
+  const input=document.getElementById('chatInput'); const q=input.value.trim();
+  if(!q)return; if(!apiKey){showApiModal();return;}
+  if(!getAllEntries().length){appendMsg('ai','Please load your encyclopedia volumes first.');return;}
+  input.value=''; appendMsg('user',q); chatHistory.push({role:'user',content:q});
+  const btn=document.getElementById('sendBtn'); btn.disabled=true;
+  const tid='t'+Date.now(); const d=document.createElement('div'); d.className='msg msg-ai'; d.id=tid;
+  d.innerHTML='<div class="msg-label">Insight AI</div><div class="msg-bubble"><div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+  document.getElementById('chatMessages').appendChild(d); scrollChat();
+  try {
+    const ctx=getCtx(q);
+    const sys=`You are a careful biblical scholar. Answer using ONLY the provided encyclopedia text from "Insight on the Scriptures." Be thorough and precise. Say so if the text lacks enough information.\n\nENCYCLOPEDIA EXCERPTS:\n${ctx}`;
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:chatHistory})});
+    const data=await res.json(); document.getElementById(tid)?.remove();
+    if(data.content?.[0]){const reply=data.content[0].text;chatHistory.push({role:'assistant',content:reply});appendMsg('ai',reply);}
+    else appendMsg('ai','Unable to retrieve answer. Check your API key.');
+  } catch(err){document.getElementById(tid)?.remove();appendMsg('ai','Connection error. Check your API key.');}
+  btn.disabled=false;
+}
+
+function getCtx(q) {
+  const words=q.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+  const scored=getAllEntries().map(e=>{
+    let s=0; const tl=(e.name+' '+e.text).toLowerCase();
+    for(const w of words)if(tl.includes(w))s++;
+    if(words.some(w=>e.name.toLowerCase().includes(w)))s+=5;
+    return{...e,score:s};
+  });
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.slice(0,6).map(e=>`[${e.name} — Vol.${e.vol}]\n${e.text.substring(0,1200)}`).join('\n\n---\n\n');
+}
+
+function appendMsg(role,text) {
+  const wrap=document.getElementById('chatMessages'); const div=document.createElement('div');
+  div.className='msg msg-'+role; div.innerHTML=`<div class="msg-label">${role==='user'?'You':'Insight AI'}</div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  wrap.appendChild(div); scrollChat();
+}
+function scrollChat(){const c=document.getElementById('chatMessages');c.scrollTop=c.scrollHeight;}
+
+async function generateStudyBrief() {
+  const topic=document.getElementById('studyTopic').value.trim(); if(!topic)return;
+  if(!apiKey){showApiModal();return;}
+  if(!getAllEntries().length){document.getElementById('studyOutput').innerHTML='<div class="no-book-notice">Please load your encyclopedia first.</div>';return;}
+  document.getElementById('studyOutput').innerHTML='<div class="no-book-notice"><div class="thinking" style="justify-content:center"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><br>Building study brief…</div>';
+  const ctx=getCtx(topic);
+  const sys=`You are a biblical scholar. Using ONLY the encyclopedia text, generate a structured study brief. Return ONLY valid JSON: {"overview":"...","historical_context":"...","key_figures":"...","geography":"...","scripture_connections":"...","deeper_study":"..."}. 2-4 sentences per section. No markdown.`;
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Topic: ${topic}\n\nText:\n${ctx}`}]})});
+    const data=await res.json();
+    const brief=JSON.parse((data.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
+    const labels={overview:'Overview',historical_context:'Historical Context',key_figures:'Key Figures',geography:'Geography & Setting',scripture_connections:'Scripture Connections',deeper_study:'For Deeper Study'};
+    let html=`<div style="margin-bottom:14px;"><span style="font-family:'Cinzel',serif;font-size:18px;color:var(--gold-light);letter-spacing:0.05em;">${esc(topic)}</span><br><span style="font-style:italic;color:var(--text-dim);font-size:13px;">Study Brief · Insight on the Scriptures</span></div>`;
+    for(const[k,l]of Object.entries(labels))if(brief[k])html+=`<div class="study-card"><div class="study-card-title">${l}</div><div class="study-card-body">${brief[k]}</div></div>`;
+    document.getElementById('studyOutput').innerHTML=html;
+  } catch(err){document.getElementById('studyOutput').innerHTML='<div class="no-book-notice">Could not generate brief. Check your API key.</div>';}
+}
+
+// ── INIT ──
+if(apiKey){document.getElementById('apiBtn').classList.add('set');document.getElementById('apiBtn').textContent='✓ Key Set';}
+renderNotes();
+switchTab('load');
+initDB();
+</script>
+</body>
+</html>
