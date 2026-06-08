@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scripture Study</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root {
+  --ink: #0a0c10;
+  --ink-mid: #12161e;
+  --ink-light: #1a2130;
+  --ink-lift: #222d3e;
+  --gold: #c8a84b;
+  --gold-bright: #e8c96a;
+  --gold-dim: #7a6228;
+  --gold-glow: rgba(200,168,75,0.12);
+  --parchment: #e8dfc8;
+  --text: #cfc5a8;
+  --text-mid: #8a8070;
+  --text-dim: #52504a;
+  --red: #c44a3a;
+  --green: #3a8a5a;
+  --blue: #3a6a9a;
+  --border: rgba(200,168,75,0.14);
+  --border-md: rgba(200,168,75,0.28);
+  --border-bright: rgba(200,168,75,0.5);
+  --hl-y: rgba(255,215,0,0.28); --hl-g: rgba(60,180,100,0.25);
+  --hl-b: rgba(60,130,210,0.25); --hl-p: rgba(160,90,210,0.25); --hl-r: rgba(210,70,70,0.25);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--ink);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:17px;display:flex;flex-direction:column;}
+
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px;}
+
+/* ── HEADER ── */
+.hdr{
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;border-bottom:1px solid var(--border-md);
+  background:linear-gradient(180deg,rgba(200,168,75,0.07) 0%,transparent 100%);
+  position:relative;z-index:50;gap:16px;
+}
+.hdr-brand{display:flex;flex-direction:column;gap:1px;}
+.hdr-title{font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;}
+.hdr-sub{font-size:11px;color:var(--text-dim);font-style:italic;letter-spacing:0.04em;}
+.hdr-right{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+
+/* status dots */
+.src-dot{display:flex;align-items:center;gap:5px;font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;color:var(--text-dim);padding:4px 9px;border:1px solid var(--border);border-radius:2px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.src-dot:hover{border-color:var(--border-md);color:var(--text);}
+.src-dot .dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);transition:background 0.3s;}
+.src-dot.loaded .dot{background:#4caf50;}
+.src-dot.loaded{color:var(--text);border-color:rgba(76,175,80,0.3);}
+
+.api-pill{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;padding:4px 11px;border:1px solid var(--gold-dim);border-radius:2px;color:var(--gold);cursor:pointer;background:rgba(200,168,75,0.06);transition:all 0.2s;white-space:nowrap;}
+.api-pill:hover{background:rgba(200,168,75,0.14);}
+.api-pill.set{border-color:rgba(76,175,80,0.5);color:#4caf50;background:rgba(76,175,80,0.06);}
+
+/* ── NAV ── */
+.nav{flex-shrink:0;display:flex;border-bottom:1px solid var(--border);background:var(--ink-mid);}
+.nav-tab{
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+  padding:11px 22px;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;
+  transition:all 0.2s;display:flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-tab .tab-icon{font-size:13px;}
+
+/* ── PANELS ── */
+.panels{flex:1;overflow:hidden;position:relative;}
+.panel{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* ── SHARED INPUT ROW ── */
+.input-row{
+  flex-shrink:0;padding:14px 20px;border-bottom:1px solid var(--border);
+  background:var(--ink-mid);display:flex;gap:10px;align-items:center;
+}
+.big-input{
+  flex:1;background:var(--ink-light);border:1px solid var(--border-md);border-radius:3px;
+  padding:10px 14px;color:var(--text);font-family:'Crimson Pro',serif;font-size:17px;
+  outline:none;transition:border-color 0.2s;
+}
+.big-input::placeholder{color:var(--text-dim);font-style:italic;}
+.big-input:focus{border-color:var(--gold-dim);}
+.go-btn{
+  background:linear-gradient(135deg,var(--gold-dim),var(--gold));border:none;border-radius:3px;
+  padding:10px 20px;color:var(--ink);font-family:'Cinzel',serif;font-size:10px;
+  letter-spacing:0.1em;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;
+}
+.go-btn:hover{opacity:0.85;} .go-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ── ASK PANEL ── */
+.ask-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.ask-welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;gap:12px;}
+.welcome-glyph{font-family:'Cinzel Decorative',serif;font-size:52px;color:var(--gold-dim);opacity:0.5;line-height:1;}
+.welcome-title{font-family:'Cinzel',serif;font-size:22px;color:var(--text);letter-spacing:0.06em;}
+.welcome-desc{font-size:16px;color:var(--text-mid);font-style:italic;max-width:440px;line-height:1.7;}
+.welcome-sources{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center;}
+.wsrc{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;padding:4px 12px;border:1px solid var(--border-md);border-radius:2px;color:var(--text-dim);}
+
+.msgs{flex:1;overflow-y:auto;padding:20px 28px;display:flex;flex-direction:column;gap:16px;}
+.msg{animation:fadeUp 0.3s ease;max-width:90%;}
+.msg.user{align-self:flex-end;}
+.msg.ai{align-self:flex-start;width:100%;max-width:100%;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.12em;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;}
+.msg.user .msg-label{text-align:right;}
+.msg-bubble{padding:12px 16px;border-radius:3px;font-size:17px;line-height:1.75;}
+.msg.user .msg-bubble{background:rgba(200,168,75,0.1);border:1px solid var(--border-md);}
+.msg.ai .msg-bubble{background:var(--ink-mid);border:1px solid var(--border);}
+
+/* Source sections inside AI answer */
+.src-section{margin-bottom:14px;}
+.src-tag{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:2px 8px;border-radius:2px;margin-bottom:7px;display:inline-block;}
+.src-tag.bible{background:rgba(60,138,90,0.15);color:#5ab87a;border:1px solid rgba(60,138,90,0.3);}
+.src-tag.insight{background:rgba(200,168,75,0.12);color:var(--gold);border:1px solid var(--border-md);}
+.src-tag.index{background:rgba(60,106,154,0.15);color:#7aabda;border:1px solid rgba(60,106,154,0.3);}
+.src-tag.proclaimers{background:rgba(160,90,200,0.12);color:#c09ada;border:1px solid rgba(160,90,200,0.3);}
+.src-content{font-size:17px;line-height:1.8;color:var(--text);}
+.bible-verse{color:var(--parchment);font-style:italic;}
+.verse-ref{font-family:'Cinzel',serif;font-size:11px;color:var(--gold-dim);margin-left:6px;}
+
+.thinking{display:flex;gap:5px;align-items:center;padding:4px 0;}
+.dot{width:5px;height:5px;background:var(--gold-dim);border-radius:50%;animation:pulse 1.2s infinite;}
+.dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* ── SEARCH PANEL ── */
+.search-results{flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.src-card{background:var(--ink-mid);border:1px solid var(--border);border-radius:4px;display:flex;flex-direction:column;overflow:hidden;}
+.src-card-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.src-card-title{font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;}
+.src-card-title.bible{color:#5ab87a;} .src-card-title.insight{color:var(--gold);} .src-card-title.index{color:#7aabda;}
+.src-card-body{flex:1;overflow-y:auto;padding:12px 14px;font-size:16px;line-height:1.8;color:var(--text);}
+.src-card-empty{color:var(--text-dim);font-style:italic;}
+.match-count{font-size:11px;color:var(--text-dim);font-style:italic;margin-left:auto;}
+
+/* ── STUDY PANEL ── */
+.study-body{flex:1;overflow-y:auto;padding:20px 28px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:16px;}
+.study-full{grid-column:1/-1;}
+.study-card{background:var(--ink-mid);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;}
+.study-card-hdr{padding:9px 14px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.study-card-body{flex:1;overflow-y:auto;padding:14px;font-size:16px;line-height:1.85;color:var(--text);}
+.passage-text{font-size:18px;line-height:2;color:var(--parchment);}
+.passage-text .vnum{font-family:'Cinzel',serif;font-size:10px;color:var(--gold-dim);vertical-align:super;margin-right:3px;}
+
+/* ── NOTES PANEL ── */
+.notes-layout{flex:1;overflow:hidden;display:grid;grid-template-columns:260px 1fr;}
+.notes-sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.notes-list-hdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.notes-list-title{font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--gold);text-transform:uppercase;}
+.notes-count{font-size:12px;color:var(--text-dim);font-style:italic;}
+.color-filters{display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);}
+.cf{width:20px;height:20px;border-radius:2px;cursor:pointer;border:2px solid transparent;transition:all 0.15s;}
+.cf:hover,.cf.active{border-color:var(--gold);}
+.cf.all{background:var(--gold-dim);} .cf.y{background:rgba(255,215,0,.6);} .cf.g{background:rgba(60,180,100,.6);}
+.cf.b{background:rgba(60,130,210,.6);} .cf.p{background:rgba(160,90,210,.6);} .cf.r{background:rgba(210,70,70,.6);}
+.notes-items{flex:1;overflow-y:auto;padding:6px 0;}
+.note-item{padding:9px 13px;cursor:pointer;border-left:2px solid transparent;transition:all 0.15s;}
+.note-item:hover{background:rgba(200,168,75,0.05);}
+.note-item.active{background:rgba(200,168,75,0.08);border-left-color:var(--gold);}
+.note-item.y{border-left-color:rgba(255,215,0,.5);} .note-item.g{border-left-color:rgba(60,180,100,.5);}
+.note-item.b{border-left-color:rgba(60,130,210,.5);} .note-item.p{border-left-color:rgba(160,90,210,.5);}
+.note-item.r{border-left-color:rgba(210,70,70,.5);}
+.ni-source{font-family:'Cinzel',serif;font-size:8px;letter-spacing:0.1em;color:var(--text-dim);text-transform:uppercase;margin-bottom:3px;}
+.ni-excerpt{font-size:13px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ni-date{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:3px;}
+.new-note-btn{margin:10px;padding:8px;background:rgba(200,168,75,0.07);border:1px dashed var(--border-md);border-radius:3px;color:var(--gold-dim);font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;cursor:pointer;text-align:center;text-transform:uppercase;transition:all 0.2s;}
+.new-note-btn:hover{color:var(--gold);background:rgba(200,168,75,0.12);}
+
+.notes-editor{display:flex;flex-direction:column;overflow:hidden;}
+.notes-editor-hdr{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.notes-editor-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em;color:var(--gold);}
+.note-actions{display:flex;gap:8px;}
+.note-act-btn{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;padding:4px 10px;border:1px solid var(--border-md);border-radius:2px;cursor:pointer;background:none;color:var(--text-dim);transition:all 0.2s;}
+.note-act-btn:hover{color:var(--text);border-color:var(--border-bright);}
+.note-act-btn.save{background:rgba(200,168,75,0.1);border-color:var(--gold-dim);color:var(--gold);}
+.note-act-btn.save:hover{background:rgba(200,168,75,0.2);}
+.note-act-btn.del{border-color:rgba(196,74,58,0.3);color:var(--red);}
+.note-color-bar{display:flex;gap:6px;padding:8px 18px;border-bottom:1px solid var(--border);align-items:center;}
+.nc-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;color:var(--text-dim);}
+.nc-swatch{width:20px;height:20px;border-radius:2px;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.nc-swatch:hover,.nc-swatch.selected{border-color:var(--gold);}
+.nc-swatch.y{background:rgba(255,215,0,.6);} .nc-swatch.g{background:rgba(60,180,100,.6);}
+.nc-swatch.b{background:rgba(60,130,210,.6);} .nc-swatch.p{background:rgba(160,90,210,.6);}
+.nc-swatch.r{background:rgba(210,70,70,.6);}
+.note-textarea{flex:1;background:transparent;border:none;outline:none;padding:16px 20px;color:var(--text);font-family:'Crimson Pro',serif;font-size:18px;line-height:1.85;resize:none;}
+.note-textarea::placeholder{color:var(--text-dim);font-style:italic;}
+.notes-empty-state{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-dim);font-style:italic;font-size:16px;text-align:center;padding:30px;}
+
+/* ── HIGHLIGHT TOOLBAR ── */
+#hlBar{position:fixed;z-index:200;background:var(--ink-mid);border:1px solid var(--border-md);border-radius:3px;padding:5px 9px;display:none;gap:5px;align-items:center;box-shadow:0 8px 28px rgba(0,0,0,0.6);}
+.hlb-label{font-family:'Cinzel',serif;font-size:8px;letter-spacing:.1em;color:var(--text-dim);}
+.hlb-sw{width:18px;height:18px;border-radius:2px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color .15s;}
+.hlb-sw:hover{border-color:var(--gold);}
+.hlb-sw.y{background:rgba(255,215,0,.7);} .hlb-sw.g{background:rgba(60,180,100,.7);}
+.hlb-sw.b{background:rgba(60,130,210,.7);} .hlb-sw.p{background:rgba(160,90,210,.7);}
+.hlb-sw.r{background:rgba(210,70,70,.7);}
+.hlb-div{width:1px;height:14px;background:var(--border-md);}
+.hlb-note{font-family:'Cinzel',serif;font-size:8px;letter-spacing:.08em;background:rgba(200,168,75,0.12);border:1px solid var(--border-md);color:var(--gold);border-radius:2px;padding:2px 7px;cursor:pointer;white-space:nowrap;}
+.hlb-note:hover{background:rgba(200,168,75,0.25);}
+mark.hl{border-radius:2px;cursor:pointer;padding:0 1px;}
+mark.hl.y{background:var(--hl-y);} mark.hl.g{background:var(--hl-g);}
+mark.hl.b{background:var(--hl-b);} mark.hl.p{background:var(--hl-p);}
+mark.hl.r{background:var(--hl-r);}
+
+/* ── DISCOURSE PANEL ── */
+.discourse-layout{flex:1;overflow:hidden;display:grid;grid-template-columns:300px 1fr;}
+.discourse-form{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:16px;}
+.df-section{margin-bottom:16px;}
+.df-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px;display:block;}
+.df-input{width:100%;background:var(--ink-light);border:1px solid var(--border-md);border-radius:3px;padding:8px 11px;color:var(--text);font-family:'Crimson Pro',serif;font-size:16px;outline:none;}
+.df-input::placeholder{color:var(--text-dim);font-style:italic;}
+.df-input:focus{border-color:var(--gold-dim);}
+.df-input.sm{font-size:15px;}
+select.df-input{cursor:pointer;}
+.df-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.illus-check{display:flex;flex-direction:column;gap:6px;}
+.illus-opt{display:flex;align-items:center;gap:7px;cursor:pointer;}
+.illus-opt input[type=checkbox]{accent-color:var(--gold);width:14px;height:14px;}
+.illus-opt span{font-size:15px;color:var(--text);}
+.gen-btn{width:100%;background:linear-gradient(135deg,var(--gold-dim),var(--gold));border:none;border-radius:3px;padding:12px;color:var(--ink);font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.12em;cursor:pointer;transition:opacity 0.2s;margin-top:4px;}
+.gen-btn:hover{opacity:0.85;} .gen-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+.discourse-output{display:flex;flex-direction:column;overflow:hidden;}
+.do-toolbar{flex-shrink:0;padding:10px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--ink-mid);}
+.do-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em;color:var(--gold);flex:1;}
+.do-btn{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;padding:5px 12px;border:1px solid var(--border-md);border-radius:2px;cursor:pointer;background:none;color:var(--text-dim);transition:all 0.2s;white-space:nowrap;}
+.do-btn:hover{color:var(--text);border-color:var(--border-bright);}
+.do-btn.save{background:rgba(200,168,75,0.08);border-color:var(--gold-dim);color:var(--gold);}
+.discourse-content{flex:1;overflow-y:auto;padding:24px 32px;}
+.outline-title{font-family:'Cinzel',serif;font-size:22px;color:var(--gold-bright);letter-spacing:0.06em;margin-bottom:4px;}
+.outline-meta{font-size:13px;color:var(--text-dim);font-style:italic;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.outline-section{margin-bottom:20px;}
+.outline-section-title{font-family:'Cinzel',serif;font-size:13px;letter-spacing:0.1em;color:var(--gold);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.outline-section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.outline-point{display:flex;gap:10px;margin-bottom:8px;font-size:17px;line-height:1.7;}
+.outline-bullet{color:var(--gold-dim);flex-shrink:0;margin-top:2px;}
+.outline-point-text{color:var(--text);}
+.outline-illus{background:var(--ink-lift);border-left:3px solid var(--gold-dim);border-radius:0 3px 3px 0;padding:10px 14px;margin:10px 0 10px 20px;font-size:16px;line-height:1.7;color:var(--text-mid);font-style:italic;}
+.outline-illus::before{content:'Illustration: ';font-family:'Cinzel',serif;font-size:9px;letter-spacing:.1em;color:var(--gold-dim);font-style:normal;display:block;margin-bottom:4px;text-transform:uppercase;}
+.outline-scripture{font-family:'Crimson Pro',serif;font-size:16px;color:var(--parchment);font-style:italic;margin:6px 0 6px 20px;padding-left:10px;border-left:2px solid var(--border-md);}
+.outline-scripture .s-ref{font-style:normal;color:var(--gold-dim);font-family:'Cinzel',serif;font-size:11px;margin-right:6px;}
+.discourse-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);font-style:italic;font-size:16px;gap:10px;text-align:center;padding:30px;}
+.discourse-placeholder .ph-icon{font-size:36px;opacity:0.3;}
+
+/* ── LOAD MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal{background:var(--ink-mid);border:1px solid var(--border-md);border-radius:6px;padding:28px 32px;max-width:520px;width:92%;box-shadow:0 24px 64px rgba(0,0,0,0.6);}
+.modal-title{font-family:'Cinzel',serif;font-size:16px;font-weight:600;color:var(--gold);margin-bottom:8px;letter-spacing:0.08em;}
+.modal-desc{font-size:15px;color:var(--text-mid);font-style:italic;line-height:1.6;margin-bottom:20px;}
+.modal input[type=password],.modal input[type=text]{width:100%;background:var(--ink-light);border:1px solid var(--border-md);border-radius:3px;padding:10px 13px;color:var(--text);font-family:'Crimson Pro',serif;font-size:16px;outline:none;margin-bottom:12px;}
+.modal input:focus{border-color:var(--gold-dim);}
+.modal-btn{width:100%;background:linear-gradient(135deg,var(--gold-dim),var(--gold));border:none;border-radius:3px;padding:11px;color:var(--ink);font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em;cursor:pointer;}
+.modal-btn:hover{opacity:0.85;}
+.modal-close{float:right;background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;margin-top:-4px;}
+.modal-close:hover{color:var(--text);}
+
+/* Load PDFs modal */
+.pdf-slots{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.pdf-slot{border:1px dashed var(--border-md);border-radius:4px;padding:14px 16px;position:relative;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:12px;}
+.pdf-slot:hover{border-color:var(--gold-dim);background:rgba(200,168,75,0.04);}
+.pdf-slot.loaded{border-style:solid;border-color:rgba(76,175,80,0.4);background:rgba(76,175,80,0.04);}
+.pdf-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.pdf-slot.loaded input{pointer-events:none;}
+.ps-icon{font-size:20px;flex-shrink:0;}
+.ps-info{flex:1;}
+.ps-name{font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;color:var(--gold);margin-bottom:2px;}
+.ps-status{font-size:13px;color:var(--text-dim);font-style:italic;}
+.ps-status.ok{color:#4caf50;font-style:normal;}
+
+.progress-wrap{margin-top:10px;display:none;}
+.prog-label{font-size:13px;color:var(--text-dim);margin-bottom:7px;font-style:italic;}
+.prog-bar{height:3px;background:var(--ink-light);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));border-radius:2px;transition:width .3s;width:0%;}
+
+/* ── SAVED DISCOURSES ── */
+.saved-discourses{padding:8px 0;}
+.sd-item{padding:9px 14px;cursor:pointer;border-left:2px solid transparent;transition:all 0.15s;display:flex;align-items:center;justify-content:space-between;}
+.sd-item:hover{background:rgba(200,168,75,0.05);}
+.sd-item.active{background:rgba(200,168,75,0.08);border-left-color:var(--gold);}
+.sd-title{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text);}
+.sd-meta{font-size:11px;color:var(--text-dim);font-style:italic;}
+.sd-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;opacity:0;padding:2px 5px;}
+.sd-item:hover .sd-del{opacity:1;}
+.sd-del:hover{color:var(--red);}
+
+/* CUSTOM SOURCES */
+.add-src-btn{width:100%;background:none;border:1px dashed var(--border-md);border-radius:3px;padding:9px;color:var(--gold-dim);font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s;text-transform:uppercase;margin-top:6px;}
+.add-src-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,0.05);}
+.custom-src-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.custom-src-item:last-child{border-bottom:none;}
+.csi-name{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;color:var(--text);flex:1;}
+.csi-status{font-size:11px;color:var(--text-dim);font-style:italic;}
+.csi-status.ok{color:#4caf50;font-style:normal;}
+.csi-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 5px;}
+.csi-del:hover{color:var(--red);}
+.hdr-custom-count{font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.08em;color:var(--text-dim);padding:4px 9px;border:1px solid var(--border);border-radius:2px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.hdr-custom-count:hover{color:var(--text);border-color:var(--border-md);}
+.hdr-custom-count.has-sources{color:var(--gold);border-color:rgba(200,168,75,0.3);}
+</style>
+</head>
+<body>
+
+<!-- HIGHLIGHT BAR -->
+<div id="hlBar">
+  <span class="hlb-label">Highlight</span>
+  <div class="hlb-sw y" onclick="doHighlight('y')"></div>
+  <div class="hlb-sw g" onclick="doHighlight('g')"></div>
+  <div class="hlb-sw b" onclick="doHighlight('b')"></div>
+  <div class="hlb-sw p" onclick="doHighlight('p')"></div>
+  <div class="hlb-sw r" onclick="doHighlight('r')"></div>
+  <div class="hlb-div"></div>
+  <button class="hlb-note" onclick="addHighlightNote()">+ Note</button>
+</div>
+
+<!-- LOAD PDFs MODAL -->
+<div class="modal-bg" id="loadModal" style="display:none;">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="modal-title">Load Scripture Sources</div>
+      <button class="modal-close" onclick="closeModal('loadModal')">✕</button>
+    </div>
+    <div class="modal-desc">Load each PDF once — saved permanently in your browser. The Bible is already built in.</div>
+    <div class="pdf-slots">
+      <div class="pdf-slot" id="slot-insight1"><input type="file" accept=".pdf" onchange="loadPDF(event,'insight1')"/>
+        <span class="ps-icon">📖</span><div class="ps-info"><div class="ps-name">Insight on the Scriptures — Vol. I</div><div class="ps-status" id="st-insight1">Click to load PDF</div></div>
+      </div>
+      <div class="pdf-slot" id="slot-insight2"><input type="file" accept=".pdf" onchange="loadPDF(event,'insight2')"/>
+        <span class="ps-icon">📗</span><div class="ps-info"><div class="ps-name">Insight on the Scriptures — Vol. II</div><div class="ps-status" id="st-insight2">Click to load PDF</div></div>
+      </div>
+      <div class="pdf-slot" id="slot-index"><input type="file" accept=".pdf" onchange="loadPDF(event,'index')"/>
+        <span class="ps-icon">📋</span><div class="ps-info"><div class="ps-name">Index Research Guide</div><div class="ps-status" id="st-index">Click to load PDF</div></div>
+      </div>
+      <div class="pdf-slot" id="slot-proclaimers"><input type="file" accept=".pdf" onchange="loadPDF(event,'proclaimers')"/>
+        <span class="ps-icon">📜</span><div class="ps-info"><div class="ps-name">Proclaimers Book (Secondary)</div><div class="ps-status" id="st-proclaimers">Click to load PDF</div></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;color:var(--gold-dim);text-transform:uppercase;margin-bottom:8px;">Additional Publications</div>
+      <div id="customSrcList"></div>
+      <button class="add-src-btn" onclick="addCustomSource()">+ Add Publication</button>
+    </div>
+    <div class="progress-wrap" id="progWrap">
+      <div class="prog-label" id="progLabel">Loading…</div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal-bg" id="apiModal" style="display:none;">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="modal-title">Anthropic API Key</div>
+      <button class="modal-close" onclick="closeModal('apiModal')">✕</button>
+    </div>
+    <div class="modal-desc">Stored in this browser session only. Sent directly to Anthropic — never stored on any server.</div>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-…" />
+    <button class="modal-btn" onclick="saveApiKey()">Save & Continue</button>
+  </div>
+</div>
+
+<!-- NOTE QUICK MODAL -->
+<div class="modal-bg" id="noteQuickModal" style="display:none;">
+  <div class="modal" style="max-width:440px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="modal-title">Quick Note</div>
+      <button class="modal-close" onclick="closeModal('noteQuickModal')">✕</button>
+    </div>
+    <div style="font-family:'Crimson Pro',serif;font-style:italic;font-size:14px;color:var(--text-mid);padding:8px 10px;border-left:3px solid var(--gold-dim);margin-bottom:12px;line-height:1.5;" id="qnExcerpt"></div>
+    <textarea id="qnText" style="width:100%;background:var(--ink-light);border:1px solid var(--border-md);border-radius:3px;padding:10px 13px;color:var(--text);font-family:'Crimson Pro',serif;font-size:17px;outline:none;resize:vertical;min-height:80px;margin-bottom:12px;" placeholder="Your note…"></textarea>
+    <button class="modal-btn" onclick="saveQuickNote()">Save Note</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-title">Scripture Study</div>
+    <div class="hdr-sub">NWT Study Edition · Deep Reference System</div>
+  </div>
+  <div class="hdr-right">
+    <div class="src-dot" id="dot-bible"><span class="dot" style="background:#4caf50;"></span>Bible</div>
+    <div class="src-dot" id="dot-insight" onclick="openModal('loadModal')"><span class="dot"></span>Insight</div>
+    <div class="src-dot" id="dot-index" onclick="openModal('loadModal')"><span class="dot"></span>Index</div>
+    <div class="src-dot" id="dot-proclaimers" onclick="openModal('loadModal')"><span class="dot"></span>Proclaimers</div>
+    <div class="hdr-custom-count" id="customCount" onclick="openModal('loadModal')">+ Add Books</div>
+    <button class="api-pill" id="apiBtn" onclick="openModal('apiModal')">Set API Key</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-tab active" onclick="switchPanel('ask')" data-panel="ask"><span class="tab-icon">✦</span>Ask</div>
+  <div class="nav-tab" onclick="switchPanel('search')" data-panel="search"><span class="tab-icon">⌕</span>Search</div>
+  <div class="nav-tab" onclick="switchPanel('study')" data-panel="study"><span class="tab-icon">◈</span>Study</div>
+  <div class="nav-tab" onclick="switchPanel('notes')" data-panel="notes"><span class="tab-icon">✎</span>Notes</div>
+  <div class="nav-tab" onclick="switchPanel('discourse')" data-panel="discourse"><span class="tab-icon">❧</span>Discourse</div>
+</nav>
+
+<!-- PANELS -->
+<div class="panels">
+
+  <!-- ASK -->
+  <div class="panel active" id="panel-ask">
+    <div class="input-row">
+      <input class="big-input" id="askInput" placeholder="Ask anything — the Bible, Insight, and Index will be consulted…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();doAsk();}"/>
+      <button class="go-btn" id="askBtn" onclick="doAsk()">Ask</button>
+    </div>
+    <div class="ask-body" id="askBody">
+      <div class="ask-welcome" id="askWelcome">
+        <div class="welcome-glyph">✦</div>
+        <div class="welcome-title">Ask the Scriptures</div>
+        <div class="welcome-desc">Ask any question. The AI will draw from the Bible, Insight on the Scriptures, and your Index Research Guide to give you a unified, sourced answer.</div>
+        <div class="welcome-sources">
+          <div class="wsrc">NWT Bible</div>
+          <div class="wsrc">Insight Vol. I & II</div>
+          <div class="wsrc">Index Research Guide</div>
+          <div class="wsrc">Proclaimers (Secondary)</div>
+        </div>
+      </div>
+      <div class="msgs" id="msgs" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="panel" id="panel-search">
+    <div class="input-row">
+      <input class="big-input" id="searchInput" placeholder="Search across all sources — enter a word, name, or topic…" onkeydown="if(event.key==='Enter')doSearch()"/>
+      <button class="go-btn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="search-results" id="searchResults">
+      <div class="src-card"><div class="src-card-hdr"><div class="src-card-title bible">Bible</div></div><div class="src-card-body src-card-empty">Enter a search term above</div></div>
+      <div class="src-card"><div class="src-card-hdr"><div class="src-card-title insight">Insight</div></div><div class="src-card-body src-card-empty">Enter a search term above</div></div>
+      <div class="src-card"><div class="src-card-hdr"><div class="src-card-title index">Index</div></div><div class="src-card-body src-card-empty">Enter a search term above</div></div>
+    </div>
+  </div>
+
+  <!-- STUDY -->
+  <div class="panel" id="panel-study">
+    <div class="input-row">
+      <input class="big-input" id="studyInput" placeholder="Enter a passage or topic — e.g. John 3:16, Faith, Resurrection…" onkeydown="if(event.key==='Enter')doStudy()"/>
+      <button class="go-btn" onclick="doStudy()">Study</button>
+    </div>
+    <div class="study-body" id="studyBody">
+      <div class="study-card study-full" style="min-height:160px;">
+        <div class="study-card-hdr" style="color:#5ab87a;">◈ Passage — NWT Study Edition</div>
+        <div class="study-card-body" id="studyPassage"><span style="color:var(--text-dim);font-style:italic;">Enter a passage above to begin</span></div>
+      </div>
+      <div class="study-card">
+        <div class="study-card-hdr" style="color:var(--gold);">◈ Insight on the Scriptures</div>
+        <div class="study-card-body" id="studyInsight"><span style="color:var(--text-dim);font-style:italic;">—</span></div>
+      </div>
+      <div class="study-card">
+        <div class="study-card-hdr" style="color:#7aabda;">◈ Index Research Guide</div>
+        <div class="study-card-body" id="studyIndex"><span style="color:var(--text-dim);font-style:italic;">—</span></div>
+      </div>
+      <div class="study-card study-full">
+        <div class="study-card-hdr" style="color:var(--gold);">✦ AI Synthesis</div>
+        <div class="study-card-body" id="studySynth"><span style="color:var(--text-dim);font-style:italic;">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="panel" id="panel-notes">
+    <div class="notes-layout">
+      <div class="notes-sidebar">
+        <div class="notes-list-hdr">
+          <div class="notes-list-title">My Notes</div>
+          <div class="notes-count" id="notesCount">0 notes</div>
+        </div>
+        <div class="color-filters">
+          <div class="cf all active" onclick="filterNoteColor('all')" title="All"></div>
+          <div class="cf y" onclick="filterNoteColor('y')" title="Yellow"></div>
+          <div class="cf g" onclick="filterNoteColor('g')" title="Green"></div>
+          <div class="cf b" onclick="filterNoteColor('b')" title="Blue"></div>
+          <div class="cf p" onclick="filterNoteColor('p')" title="Purple"></div>
+          <div class="cf r" onclick="filterNoteColor('r')" title="Red"></div>
+        </div>
+        <div class="notes-items" id="notesItems"></div>
+        <div class="new-note-btn" onclick="newBlankNote()">+ New Note</div>
+      </div>
+      <div class="notes-editor" id="notesEditor">
+        <div class="notes-empty-state" id="notesEmpty">
+          <span style="font-size:32px;opacity:0.3;">✎</span>
+          Select a note to edit, or create a new one.<br>
+          <span style="font-size:14px;margin-top:4px;display:block;">Highlight text in any panel to add a note.</span>
+        </div>
+        <div id="noteEditArea" style="display:none;flex-direction:column;height:100%;">
+          <div class="notes-editor-hdr">
+            <div class="notes-editor-title" id="noteEditorTitle">Untitled Note</div>
+            <div class="note-actions">
+              <button class="note-act-btn del" onclick="deleteActiveNote()">Delete</button>
+              <button class="note-act-btn save" onclick="saveActiveNote()">Save</button>
+            </div>
+          </div>
+          <div class="note-color-bar">
+            <span class="nc-label">Color:</span>
+            <div class="nc-swatch y selected" data-c="y" onclick="setNoteColor(this)"></div>
+            <div class="nc-swatch g" data-c="g" onclick="setNoteColor(this)"></div>
+            <div class="nc-swatch b" data-c="b" onclick="setNoteColor(this)"></div>
+            <div class="nc-swatch p" data-c="p" onclick="setNoteColor(this)"></div>
+            <div class="nc-swatch r" data-c="r" onclick="setNoteColor(this)"></div>
+          </div>
+          <textarea class="note-textarea" id="noteEditText" placeholder="Write your note here…"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCOURSE -->
+  <div class="panel" id="panel-discourse">
+    <div class="discourse-layout">
+      <div class="discourse-form">
+        <div class="df-section">
+          <label class="df-label">Talk Title / Topic</label>
+          <input class="df-input" id="df-topic" placeholder="e.g. The Resurrection Hope"/>
+        </div>
+        <div class="df-section">
+          <label class="df-label">Key Scripture</label>
+          <input class="df-input sm" id="df-scripture" placeholder="e.g. John 5:28, 29"/>
+        </div>
+        <div class="df-section df-row">
+          <div>
+            <label class="df-label">Length (minutes)</label>
+            <input class="df-input sm" id="df-length" type="number" value="30" min="5" max="120"/>
+          </div>
+          <div>
+            <label class="df-label">Audience</label>
+            <select class="df-input sm" id="df-audience">
+              <option>Congregation</option>
+              <option>Public</option>
+              <option>Youth</option>
+              <option>Bereaved family</option>
+              <option>Mixed</option>
+            </select>
+          </div>
+        </div>
+        <div class="df-section">
+          <label class="df-label">Main Points (one per line)</label>
+          <textarea class="df-input" id="df-points" rows="4" placeholder="What is the resurrection?&#10;Who will be resurrected?&#10;Why we can be certain"></textarea>
+        </div>
+        <div class="df-section">
+          <label class="df-label">Illustration Style</label>
+          <div class="illus-check">
+            <label class="illus-opt"><input type="checkbox" id="il-everyday" checked/><span>Everyday life</span></label>
+            <label class="illus-opt"><input type="checkbox" id="il-nature"/><span>Nature & creation</span></label>
+            <label class="illus-opt"><input type="checkbox" id="il-historical"/><span>Historical parallels</span></label>
+            <label class="illus-opt"><input type="checkbox" id="il-personal"/><span>Personal experience style</span></label>
+          </div>
+        </div>
+        <div class="df-section">
+          <label class="df-label">Additional Notes</label>
+          <textarea class="df-input sm" id="df-notes" rows="3" placeholder="Tone, specific scriptures to include, audience needs…"></textarea>
+        </div>
+        <button class="gen-btn" id="genBtn" onclick="generateDiscourse()">Generate Outline</button>
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px;">
+          <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.1em;color:var(--gold-dim);text-transform:uppercase;margin-bottom:8px;">Saved Outlines</div>
+          <div class="saved-discourses" id="savedDiscourses"><div style="color:var(--text-dim);font-style:italic;font-size:13px;padding:6px 2px;">No saved outlines yet</div></div>
+        </div>
+      </div>
+      <div class="discourse-output">
+        <div class="do-toolbar">
+          <div class="do-title" id="doTitle">Discourse Outline</div>
+          <button class="do-btn save" onclick="saveDiscourse()">Save</button>
+          <button class="do-btn" onclick="exportDiscourse()">Export TXT</button>
+          <button class="do-btn" onclick="printDiscourse()">Print</button>
+        </div>
+        <div class="discourse-content" id="discourseContent">
+          <div class="discourse-placeholder">
+            <span class="ph-icon">❧</span>
+            Fill in the form and click Generate Outline.<br>
+            <span style="font-size:14px;margin-top:6px;display:block;">The AI will weave in illustrations and scriptures<br>from your sources.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── STATE ──
+const SOURCES = { insight1:'', insight2:'', index:'', proclaimers:'' };
+let apiKey = sessionStorage.getItem('ssApiKey') || '';
+let notes = JSON.parse(localStorage.getItem('ssNotes') || '[]');
+let discourses = JSON.parse(localStorage.getItem('ssDiscourses') || '[]');
+let activeNote = null;
+let activeDiscourse = null;
+let noteColorFilter = 'all';
+let chatHistory = [];
+let savedRange = null;
+let pendingSel = null;
+let db = null;
+
+// ── INDEXEDDB ──
+async function initDB() {
+  try {
+    db = await new Promise((res,rej) => {
+      const r = indexedDB.open('ScriptureStudy',1);
+      r.onupgradeneeded = e => { if(!e.target.result.objectStoreNames.contains('src')) e.target.result.createObjectStore('src'); };
+      r.onsuccess = e => res(e.target.result);
+      r.onerror = () => rej(r.error);
+    });
+    for (const key of Object.keys(SOURCES)) {
+      const val = await dbGet(key);
+      if (val) { SOURCES[key] = val; markLoaded(key); }
+    }
+    await loadCustomSourcesFromDB();
+  } catch(e) { console.warn('IDB unavailable', e); }
+}
+const dbGet = k => new Promise((res,rej) => { const tx=db.transaction('src','readonly');const r=tx.objectStore('src').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error); });
+const dbSet = (k,v) => new Promise((res,rej) => { const tx=db.transaction('src','readwrite');tx.objectStore('src').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error); });
+
+// ── TEXT FIX ──
+function fixSpaced(text) {
+  // Lightweight — no per-line regex on huge strings
+  return text.replace(/-\n\s*/g,'').replace(/[ \t]{2,}/g,' ').replace(/\f/g,'\n\n').trim();
+}
+
+function extractPageText(items) {
+  let pt='', px=null, py=null;
+  for(const it of items){
+    if(!it.str) continue;
+    const x=it.transform[4], y=it.transform[5];
+    if(py!==null && Math.abs(y-py)>4) pt+='\n';
+    else if(px!==null && x-px>6) pt+=' ';
+    pt+=it.str;
+    px=x+(it.width||0); py=y;
+  }
+  return pt;
+}
+// ── PDF LOAD ──
+async function loadPDF(e, key) {
+  const file = e.target.files[0]; if(!file) return;
+  const pw=document.getElementById('progWrap'), pf=document.getElementById('progFill'), pl=document.getElementById('progLabel');
+  pw.style.display='block'; pl.textContent=`Loading ${key}…`; pf.style.width='0%';
+  // Yield to browser to prevent freeze
+  await new Promise(r=>setTimeout(r,50));
+  try {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+    const total = pdf.numPages;
+    const CHUNK = 30; // pages per chunk
+    let chunks = [];
+    for(let i=1;i<=total;i++){
+      const page=await pdf.getPage(i);
+      const ct=await page.getTextContent({normalizeWhitespace:true});
+      chunks.push(extractPageText(ct.items));
+      pf.style.width=Math.round((i/total)*100)+'%';
+      pl.textContent='Reading page '+i+' of '+total+'…';
+      // Yield every CHUNK pages — keeps UI alive
+      if(i%CHUNK===0) await new Promise(r=>setTimeout(r,0));
+    }
+    pl.textContent='Saving…';
+    await new Promise(r=>setTimeout(r,0));
+    const fullText = fixSpaced(chunks.join('\n'));
+    SOURCES[key] = fullText;
+    if(db) await dbSet(key, fullText);
+    pl.textContent='✓ '+key+' saved — '+total+' pages loaded';
+    markLoaded(key);
+  } catch(err){pl.textContent='Error: '+err.message;console.error(err);}
+}
+
+function markLoaded(key) {
+  const dot = document.getElementById('dot-'+key.replace(/\d/,''));
+  if(dot) { dot.classList.add('loaded'); }
+  const slot = document.getElementById('slot-'+key);
+  const st = document.getElementById('st-'+key);
+  if(slot) slot.classList.add('loaded');
+  if(st) { st.textContent='✓ Loaded & saved'; st.className='ps-status ok'; }
+  // For insight1 and insight2, mark the insight dot
+  if(key==='insight1'||key==='insight2'){
+    const d=document.getElementById('dot-insight');
+    if(SOURCES.insight1||SOURCES.insight2)d.classList.add('loaded');
+  }
+}
+
+// ── MODALS ──
+function openModal(id){document.getElementById(id).style.display='flex';}
+function closeModal(id){document.getElementById(id).style.display='none';}
+
+// ── API KEY ──
+function saveApiKey(){
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(k){apiKey=k;sessionStorage.setItem('ssApiKey',k);const b=document.getElementById('apiBtn');b.classList.add('set');b.textContent='✓ API Key Set';}
+  closeModal('apiModal');
+}
+
+// ── NAV ──
+function switchPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelector(`.nav-tab[data-panel="${name}"]`).classList.add('active');
+}
+
+// ── BIBLE LOOKUP (NWT-style, built-in key passages) ──
+// Full Bible not embedded (too large) — AI will handle passage retrieval
+// We store key verse lookup for Study panel
+function biblePassage(ref) {
+  // Returns a note that the AI will provide the actual text
+  return null;
+}
+
+// ── CONTEXT BUILDER ──
+function getContext(query, maxPerSource=1400) {
+  const words = query.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+  const score = (text) => {
+    let s=0; const tl=text.toLowerCase();
+    for(const w of words) if(tl.includes(w)) s++;
+    return s;
+  };
+  // Insight: chunk and score
+  const insightText = (SOURCES.insight1+'\n'+SOURCES.insight2).trim();
+  const indexText = SOURCES.index;
+  const procText = SOURCES.proclaimers;
+  const getSnippet = (text, max) => {
+    if(!text) return '';
+    const chunks=[]; const size=600;
+    for(let i=0;i<text.length;i+=size) chunks.push(text.slice(i,i+size));
+    chunks.sort((a,b)=>score(b)-score(a));
+    return chunks.slice(0,3).join('\n---\n').substring(0,max);
+  };
+  return {
+    insight: getSnippet(insightText, maxPerSource),
+    index: getSnippet(indexText, maxPerSource),
+    proclaimers: getSnippet(procText, 800),
+    custom: (typeof customSources!=='undefined'&&customSources.length) ? getCustomContext(query) : ''
+  };
+}
+
+// ── ASK ──
+async function doAsk() {
+  const q = document.getElementById('askInput').value.trim(); if(!q) return;
+  if(!apiKey){openModal('apiModal');return;}
+  document.getElementById('askInput').value='';
+  document.getElementById('askWelcome').style.display='none';
+  const msgs = document.getElementById('msgs'); msgs.style.display='flex';
+  appendMsg('user', q);
+  chatHistory.push({role:'user',content:q});
+  const btn=document.getElementById('askBtn'); btn.disabled=true;
+  const tid='t'+Date.now(); appendThinking(tid);
+  try {
+    const ctx = getContext(q);
+    const sys = `You are a careful biblical scholar and study assistant using the New World Translation (NWT Study Edition) as your Bible. 
+
+Answer the user's question by consulting all available sources. Structure your response with clearly labeled source sections using these exact XML tags:
+
+<BIBLE>Your answer from the Bible. Quote relevant NWT scriptures directly with references.</BIBLE>
+<INSIGHT>What Insight on the Scriptures says about this topic.</INSIGHT>
+<INDEX>What the Index Research Guide references about this topic.</INDEX>
+${ctx.proclaimers?'<PROCLAIMERS>Relevant information from the Proclaimers book.</PROCLAIMERS>':''}
+<SYNTHESIS>A brief, unified conclusion drawing all sources together.</SYNTHESIS>
+
+Use only NWT language for Bible quotes. Be precise and scholarly. If a source doesn't have relevant information, say so briefly.
+
+INSIGHT TEXT:\n${ctx.insight||'(Not yet loaded)'}
+
+INDEX TEXT:\n${ctx.index||'(Not yet loaded)'}
+${ctx.proclaimers?'PROCLAIMERS TEXT:\n'+ctx.proclaimers:''}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:sys,messages:chatHistory})});
+    const data = await res.json();
+    document.getElementById(tid)?.remove();
+    if(data.content?.[0]){
+      const reply=data.content[0].text;
+      chatHistory.push({role:'assistant',content:reply});
+      appendAIAnswer(reply);
+    } else { appendMsg('ai','Unable to retrieve answer. Check your API key.'); }
+  } catch(err){document.getElementById(tid)?.remove();appendMsg('ai','Connection error. Check your API key.');}
+  btn.disabled=false;
+}
+
+function appendMsg(role, text) {
+  const msgs=document.getElementById('msgs');
+  const d=document.createElement('div'); d.className='msg '+role;
+  d.innerHTML=`<div class="msg-label">${role==='user'?'You':'Answer'}</div><div class="msg-bubble">${esc(text)}</div>`;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function appendThinking(id) {
+  const msgs=document.getElementById('msgs');
+  const d=document.createElement('div'); d.className='msg ai'; d.id=id;
+  d.innerHTML='<div class="msg-label">Consulting Sources…</div><div class="msg-bubble"><div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function appendAIAnswer(raw) {
+  const msgs=document.getElementById('msgs');
+  const d=document.createElement('div'); d.className='msg ai';
+  const tags=[['BIBLE','bible','Bible — NWT Study Edition'],['INSIGHT','insight','Insight on the Scriptures'],['INDEX','index','Index Research Guide'],['PROCLAIMERS','proclaimers','Proclaimers Book'],['SYNTHESIS','insight','Synthesis']];
+  let html='<div class="msg-label">Answer</div><div class="msg-bubble">';
+  for(const [tag,cls,label] of tags){
+    const m=raw.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+    if(m&&m[1].trim()){html+=`<div class="src-section"><div class="src-tag ${cls}">${label}</div><div class="src-content">${m[1].trim().replace(/\n/g,'<br>')}</div></div>`;}
+  }
+  // fallback if no tags
+  if(!html.includes('src-section')) html+=`<div class="src-content">${raw.replace(/\n/g,'<br>')}</div>`;
+  html+='</div>';
+  d.innerHTML=html; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── SEARCH ──
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim(); if(!q) return;
+  const words = q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
+  const highlight = (text,max=500) => {
+    if(!text) return '<span class="src-card-empty">Source not loaded</span>';
+    const lower=text.toLowerCase(); let best=-1,bi=0;
+    for(const w of words){const i=lower.indexOf(w);if(i>=0&&(best===-1||i<best)){best=i;bi=i;}}
+    if(best===-1) return '<span class="src-card-empty">No matches found</span>';
+    const start=Math.max(0,bi-100), end=Math.min(text.length,bi+max);
+    let snippet=esc(text.slice(start,end));
+    for(const w of words) snippet=snippet.replace(new RegExp(`(${esc(w)})`, 'gi'),'<mark style="background:rgba(200,168,75,0.3);border-radius:2px;padding:0 1px;">$1</mark>');
+    return (start>0?'…':'')+snippet+(end<text.length?'…':'');
+  };
+  const insightText=(SOURCES.insight1+'\n'+SOURCES.insight2).trim();
+  const r=document.getElementById('searchResults');
+  r.innerHTML=`
+    <div class="src-card"><div class="src-card-hdr"><div class="src-card-title bible">Bible — NWT</div><div class="match-count">AI-assisted</div></div><div class="src-card-body" id="sr-bible"><div class="thinking" style="margin-top:10px;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>
+    <div class="src-card"><div class="src-card-hdr"><div class="src-card-title insight">Insight on the Scriptures</div></div><div class="src-card-body">${insightText?highlight(insightText):'<span class="src-card-empty">Not loaded yet</span>'}</div></div>
+    <div class="src-card"><div class="src-card-hdr"><div class="src-card-title index">Index Research Guide</div></div><div class="src-card-body">${SOURCES.index?highlight(SOURCES.index):'<span class="src-card-empty">Not loaded yet</span>'}</div></div>`;
+  // Bible via AI
+  if(apiKey){
+    fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:`From the New World Translation, list the most relevant scriptures for "${q}". Give up to 5 scriptures with their full text in NWT language and references. Be concise.`}]})})
+    .then(r=>r.json()).then(data=>{
+      const el=document.getElementById('sr-bible');
+      if(el&&data.content?.[0]) el.innerHTML=data.content[0].text.replace(/\n/g,'<br>');
+      else if(el) el.innerHTML='<span class="src-card-empty">Unable to retrieve</span>';
+    }).catch(()=>{const el=document.getElementById('sr-bible');if(el)el.innerHTML='<span class="src-card-empty">Set API key to search Bible</span>';});
+  } else {
+    const el=document.getElementById('sr-bible'); if(el) el.innerHTML='<span class="src-card-empty">Set API key to search Bible</span>';
+  }
+}
+
+// ── STUDY ──
+async function doStudy() {
+  const q=document.getElementById('studyInput').value.trim(); if(!q)return;
+  if(!apiKey){openModal('apiModal');return;}
+  ['studyPassage','studyInsight','studyIndex','studySynth'].forEach(id=>{
+    document.getElementById(id).innerHTML='<div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  });
+  const ctx=getContext(q);
+  const sys=`You are a biblical scholar using the NWT Study Edition. For the given topic or passage, provide:
+1. PASSAGE: The exact NWT text of the relevant scripture(s) with verse numbers. If it's a topic not a reference, give the most relevant 2-3 scriptures.
+2. INSIGHT: What Insight on the Scriptures says. Draw from the provided text.
+3. INDEX: What the Index Research Guide shows. Draw from the provided text.
+4. SYNTHESIS: A 3-4 sentence scholarly synthesis connecting all sources.
+
+Return ONLY valid JSON: {"passage":"...","insight":"...","index":"...","synthesis":"..."}
+
+INSIGHT TEXT: ${ctx.insight||'Not loaded'}
+INDEX TEXT: ${ctx.index||'Not loaded'}`;
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:`Topic/Passage: ${q}`}],system:sys})});
+    const data=await res.json();
+    const raw=(data.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+    const obj=JSON.parse(raw);
+    document.getElementById('studyPassage').innerHTML=`<div class="passage-text">${(obj.passage||'No passage found').replace(/\n/g,'<br>')}</div>`;
+    document.getElementById('studyInsight').innerHTML=(obj.insight||'No information found in Insight').replace(/\n/g,'<br>');
+    document.getElementById('studyIndex').innerHTML=(obj.index||'No information found in Index').replace(/\n/g,'<br>');
+    document.getElementById('studySynth').innerHTML=(obj.synthesis||'').replace(/\n/g,'<br>');
+  } catch(e){
+    ['studyPassage','studyInsight','studyIndex','studySynth'].forEach(id=>{ document.getElementById(id).innerHTML='<span style="color:var(--text-dim);font-style:italic;">Error — check API key</span>'; });
+  }
+}
+
+// ── DISCOURSE OUTLINE ──
+async function generateDiscourse() {
+  const topic=document.getElementById('df-topic').value.trim();
+  if(!topic){alert('Please enter a talk title or topic.');return;}
+  if(!apiKey){openModal('apiModal');return;}
+  const scripture=document.getElementById('df-scripture').value.trim();
+  const length=document.getElementById('df-length').value||30;
+  const audience=document.getElementById('df-audience').value;
+  const points=document.getElementById('df-points').value.trim();
+  const notes=document.getElementById('df-notes').value.trim();
+  const ilStyles=[];
+  if(document.getElementById('il-everyday').checked) ilStyles.push('everyday life situations');
+  if(document.getElementById('il-nature').checked) ilStyles.push('nature and creation');
+  if(document.getElementById('il-historical').checked) ilStyles.push('historical parallels');
+  if(document.getElementById('il-personal').checked) ilStyles.push('personal experience style');
+  const btn=document.getElementById('genBtn'); btn.disabled=true;
+  document.getElementById('discourseContent').innerHTML='<div class="discourse-placeholder"><div class="thinking" style="justify-content:center;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><br>Building outline…</div>';
+  const ctx=getContext(topic);
+  const sys=`You are an experienced minister and public speaker helping craft a public discourse outline. Create a detailed, practical outline that:
+- Is timed for exactly ${length} minutes
+- Targets: ${audience}
+- Uses simple, clear language that connects with people
+- Weaves in illustrations naturally (style: ${ilStyles.join(', ')||'everyday life'})
+- Draws from the Bible (NWT), Insight on the Scriptures, and Index Research Guide
+- Follows a logical flow: Introduction → Main Points → Conclusion
+- Each illustration should be SHORT, vivid, and land a specific point — not rambling stories
+
+Return ONLY valid JSON:
+{
+  "title": "...",
+  "theme": "one sentence theme statement",
+  "scripture": "key scripture text",
+  "intro": { "hook": "opening illustration or question", "purpose": "what this talk will cover" },
+  "points": [
+    {
+      "title": "Point title",
+      "content": "Main teaching content",
+      "scripture": "relevant scripture with NWT text",
+      "illustration": "Simple, concrete illustration that drives this point home",
+      "transition": "Brief transition to next point"
+    }
+  ],
+  "conclusion": { "summary": "...", "appeal": "...", "closing_scripture": "..." },
+  "timing": { "intro": "X min", "each_point": "X min", "conclusion": "X min" }
+}
+
+INSIGHT EXCERPTS: ${ctx.insight||'Not loaded'}
+INDEX EXCERPTS: ${ctx.index||'Not loaded'}`;
+  const userMsg=`Topic: ${topic}\nKey Scripture: ${scripture||'Choose most fitting'}\nMain Points: ${points||'Develop from topic'}\nExtra Notes: ${notes||'None'}`;
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:sys,messages:[{role:'user',content:userMsg}]})});
+    const data=await res.json();
+    const raw=(data.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+    const outline=JSON.parse(raw);
+    activeDiscourse={id:'d'+Date.now(),topic,outline,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})};
+    renderOutline(outline);
+    document.getElementById('doTitle').textContent=outline.title||topic;
+  } catch(e){ document.getElementById('discourseContent').innerHTML='<div class="discourse-placeholder">Error generating outline. Check your API key.</div>'; }
+  btn.disabled=false;
+}
+
+function renderOutline(o) {
+  let html=`<div class="outline-title">${esc(o.title||'')}</div>
+  <div class="outline-meta">${esc(o.theme||'')} · ${document.getElementById('df-length').value} min · ${document.getElementById('df-audience').value}</div>`;
+  // Timing
+  if(o.timing) html+=`<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">${Object.entries(o.timing).map(([k,v])=>`<span style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.08em;color:var(--text-dim);padding:3px 9px;border:1px solid var(--border);border-radius:2px;text-transform:uppercase;">${k.replace('_',' ')}: <span style="color:var(--gold);">${v}</span></span>`).join('')}</div>`;
+  // Intro
+  if(o.intro){
+    html+=`<div class="outline-section">
+    <div class="outline-section-title">Introduction</div>
+    <div class="outline-illus">${esc(o.intro.hook||'')}</div>
+    <div class="outline-point"><span class="outline-bullet">◆</span><span class="outline-point-text">${esc(o.intro.purpose||'')}</span></div>
+    ${o.scripture?`<div class="outline-scripture"><span class="s-ref">Key Scripture</span>${esc(o.scripture)}</div>`:''}
+    </div>`;
+  }
+  // Points
+  if(o.points?.length){
+    o.points.forEach((pt,i)=>{
+      html+=`<div class="outline-section">
+      <div class="outline-section-title">Point ${i+1}: ${esc(pt.title||'')}</div>
+      <div class="outline-point"><span class="outline-bullet">◆</span><span class="outline-point-text">${esc(pt.content||'')}</span></div>
+      ${pt.scripture?`<div class="outline-scripture"><span class="s-ref">Scripture</span>${esc(pt.scripture)}</div>`:''}
+      ${pt.illustration?`<div class="outline-illus">${esc(pt.illustration)}</div>`:''}
+      ${pt.transition?`<div class="outline-point" style="opacity:0.6;font-style:italic;"><span class="outline-bullet">→</span><span class="outline-point-text">${esc(pt.transition)}</span></div>`:''}
+      </div>`;
+    });
+  }
+  // Conclusion
+  if(o.conclusion){
+    html+=`<div class="outline-section">
+    <div class="outline-section-title">Conclusion</div>
+    <div class="outline-point"><span class="outline-bullet">◆</span><span class="outline-point-text">${esc(o.conclusion.summary||'')}</span></div>
+    ${o.conclusion.appeal?`<div class="outline-point"><span class="outline-bullet">◆</span><span class="outline-point-text">${esc(o.conclusion.appeal)}</span></div>`:''}
+    ${o.conclusion.closing_scripture?`<div class="outline-scripture"><span class="s-ref">Close</span>${esc(o.conclusion.closing_scripture)}</div>`:''}
+    </div>`;
+  }
+  document.getElementById('discourseContent').innerHTML=html;
+}
+
+function saveDiscourse(){
+  if(!activeDiscourse) return;
+  const existing=discourses.findIndex(d=>d.id===activeDiscourse.id);
+  if(existing>=0) discourses[existing]=activeDiscourse;
+  else discourses.unshift(activeDiscourse);
+  localStorage.setItem('ssDiscourses',JSON.stringify(discourses));
+  renderSavedDiscourses();
+}
+
+function renderSavedDiscourses(){
+  const el=document.getElementById('savedDiscourses');
+  if(!discourses.length){el.innerHTML='<div style="color:var(--text-dim);font-style:italic;font-size:13px;padding:6px 2px;">No saved outlines yet</div>';return;}
+  el.innerHTML=discourses.map(d=>`<div class="sd-item${activeDiscourse?.id===d.id?' active':''}" onclick="loadDiscourse('${d.id}')">
+    <div><div class="sd-title">${esc(d.topic)}</div><div class="sd-meta">${d.date}</div></div>
+    <button class="sd-del" onclick="deleteDiscourse(event,'${d.id}')">✕</button>
+  </div>`).join('');
+}
+
+function loadDiscourse(id){
+  const d=discourses.find(x=>x.id===id); if(!d) return;
+  activeDiscourse=d;
+  document.getElementById('df-topic').value=d.topic;
+  renderOutline(d.outline);
+  document.getElementById('doTitle').textContent=d.outline.title||d.topic;
+  renderSavedDiscourses();
+}
+
+function deleteDiscourse(e,id){e.stopPropagation();if(!confirm('Delete this outline?'))return;discourses=discourses.filter(d=>d.id!==id);localStorage.setItem('ssDiscourses',JSON.stringify(discourses));if(activeDiscourse?.id===id){activeDiscourse=null;document.getElementById('discourseContent').innerHTML='<div class="discourse-placeholder"><span class="ph-icon">❧</span>Outline deleted</div>';}renderSavedDiscourses();}
+
+function exportDiscourse(){
+  if(!activeDiscourse) return;
+  const o=activeDiscourse.outline;
+  let txt=`${o.title||activeDiscourse.topic}\n${'='.repeat(50)}\n${o.theme||''}\n\n`;
+  txt+=`TIMING: ${JSON.stringify(o.timing||{})}\n\n`;
+  if(o.intro) txt+=`INTRODUCTION\n${o.intro.hook||''}\n${o.intro.purpose||''}\n\n`;
+  if(o.points) o.points.forEach((p,i)=>{txt+=`POINT ${i+1}: ${p.title||''}\n${p.content||''}\n${p.scripture?'Scripture: '+p.scripture+'\n':''}${p.illustration?'Illustration: '+p.illustration+'\n':''}${p.transition?'→ '+p.transition+'\n':''}\n`;});
+  if(o.conclusion) txt+=`CONCLUSION\n${o.conclusion.summary||''}\n${o.conclusion.appeal||''}\n${o.conclusion.closing_scripture||''}`;
+  const blob=new Blob([txt],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(o.title||'discourse')+'.txt';a.click();
+}
+
+function printDiscourse(){window.print();}
+
+// ── NOTES ──
+function renderNotes(){
+  const filtered=noteColorFilter==='all'?notes:notes.filter(n=>n.color===noteColorFilter);
+  document.getElementById('notesCount').textContent=notes.length+' note'+(notes.length!==1?'s':'');
+  const el=document.getElementById('notesItems');
+  if(!filtered.length){el.innerHTML='<div style="padding:14px;color:var(--text-dim);font-style:italic;font-size:13px;">No notes yet</div>';return;}
+  el.innerHTML=filtered.map(n=>`<div class="note-item ${n.color}${activeNote?.id===n.id?' active':''}" onclick="openNote('${n.id}')">
+    <div class="ni-source">${esc(n.source||'General')}</div>
+    <div class="ni-excerpt">${esc(n.text.substring(0,80))}</div>
+    <div class="ni-date">${n.date}</div>
+  </div>`).join('');
+}
+
+function openNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  activeNote=n;
+  document.getElementById('notesEmpty').style.display='none';
+  const ea=document.getElementById('noteEditArea');ea.style.display='flex';ea.style.flexDirection='column';ea.style.height='100%';
+  document.getElementById('noteEditorTitle').textContent=n.source||'Note';
+  document.getElementById('noteEditText').value=n.text;
+  document.querySelectorAll('.nc-swatch').forEach(s=>{s.classList.remove('selected');if(s.dataset.c===n.color)s.classList.add('selected');});
+  renderNotes();
+}
+
+function saveActiveNote(){
+  if(!activeNote) return;
+  activeNote.text=document.getElementById('noteEditText').value;
+  const idx=notes.findIndex(n=>n.id===activeNote.id);
+  if(idx>=0) notes[idx]=activeNote;
+  localStorage.setItem('ssNotes',JSON.stringify(notes));
+  renderNotes();
+}
+
+function deleteActiveNote(){
+  if(!activeNote||!confirm('Delete this note?')) return;
+  notes=notes.filter(n=>n.id!==activeNote.id);
+  activeNote=null;
+  localStorage.setItem('ssNotes',JSON.stringify(notes));
+  document.getElementById('notesEmpty').style.display='flex';
+  document.getElementById('noteEditArea').style.display='none';
+  renderNotes();
+}
+
+function setNoteColor(el){
+  document.querySelectorAll('.nc-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  if(activeNote){activeNote.color=el.dataset.c;renderNotes();}
+}
+
+function filterNoteColor(c){
+  noteColorFilter=c;
+  document.querySelectorAll('.cf').forEach(el=>el.classList.remove('active'));
+  document.querySelector('.cf.'+c)?.classList.add('active');
+  renderNotes();
+}
+
+function newBlankNote(){
+  const n={id:'n'+Date.now(),text:'',source:'General',color:'y',date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})};
+  notes.unshift(n);localStorage.setItem('ssNotes',JSON.stringify(notes));
+  openNote(n.id);
+}
+
+// ── HIGHLIGHT ──
+const hlBar=document.getElementById('hlBar');
+document.addEventListener('mouseup',e=>{
+  if(hlBar.contains(e.target)) return;
+  const sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.toString().trim()){if(!hlBar.contains(e.target))hlBar.style.display='none';return;}
+  const activePanel=document.querySelector('.panel.active');
+  if(!activePanel||!activePanel.contains(sel.anchorNode)){hlBar.style.display='none';return;}
+  savedRange=sel.getRangeAt(0).cloneRange();
+  pendingSel={text:sel.toString().trim()};
+  const rect=sel.getRangeAt(0).getBoundingClientRect();
+  hlBar.style.display='flex';
+  hlBar.style.top=(rect.top+window.scrollY-46)+'px';
+  hlBar.style.left=Math.max(8,rect.left+rect.width/2-100)+'px';
+});
+document.addEventListener('mousedown',e=>{if(!hlBar.contains(e.target)&&!document.getElementById('noteQuickModal').contains(e.target)){setTimeout(()=>{const s=window.getSelection();if(!s||s.isCollapsed)hlBar.style.display='none';},100);}});
+
+function doHighlight(color){
+  if(!savedRange) return;
+  const mark=document.createElement('mark');mark.className='hl '+color;
+  try{savedRange.surroundContents(mark);mark.addEventListener('click',()=>{const p=mark.parentNode;while(mark.firstChild)p.insertBefore(mark.firstChild,mark);p.removeChild(mark);});}catch(e){}
+  window.getSelection().removeAllRanges();hlBar.style.display='none';
+}
+
+function addHighlightNote(){
+  if(!pendingSel) return;
+  document.getElementById('qnExcerpt').textContent=`"${pendingSel.text.substring(0,160)}${pendingSel.text.length>160?'…':''}"`;
+  document.getElementById('qnText').value='';
+  openModal('noteQuickModal');
+  setTimeout(()=>document.getElementById('qnText').focus(),50);
+}
+
+function saveQuickNote(){
+  const text=document.getElementById('qnText').value.trim(); if(!text){closeModal('noteQuickModal');return;}
+  const n={id:'n'+Date.now(),text:text+(pendingSel?'\n\n"'+pendingSel.text.substring(0,200)+'"':''),source:'Highlighted',color:'y',date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})};
+  if(savedRange){try{const m=document.createElement('mark');m.className='hl y';savedRange.surroundContents(m);m.addEventListener('click',()=>{const p=m.parentNode;while(m.firstChild)p.insertBefore(m.firstChild,m);p.removeChild(m);});}catch(e){}}
+  notes.unshift(n);localStorage.setItem('ssNotes',JSON.stringify(notes));
+  renderNotes();closeModal('noteQuickModal');
+  window.getSelection().removeAllRanges();hlBar.style.display='none';
+}
+
+
+// -- CUSTOM SOURCES --
+let customSources = [];
+
+function updateCustomCount() {
+  const el = document.getElementById('customCount');
+  if(!el) return;
+  if(customSources.length > 0) {
+    el.textContent = customSources.length + ' Extra Book' + (customSources.length>1?'s':'');
+    el.classList.add('has-sources');
+  } else {
+    el.textContent = '+ Add Books';
+    el.classList.remove('has-sources');
+  }
+}
+
+function renderCustomSrcList() {
+  const el = document.getElementById('customSrcList');
+  if(!el) return;
+  if(!customSources.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-style:italic;font-size:13px;padding:4px 0;">No additional publications loaded</div>';
+    return;
+  }
+  el.innerHTML = customSources.map(s => '<div class="custom-src-item">' +
+    '<span style="font-size:16px;">\ud83d\udcc4</span>' +
+    '<div style="flex:1;"><div class="csi-name">' + esc(s.name) + '</div>' +
+    '<div class="csi-status ok">\u2713 Loaded</div></div>' +
+    '<button class="csi-del" onclick="deleteCustomSource('' + s.id + '')" title="Remove">\u2715</button>' +
+    '</div>').join('');
+}
+
+function addCustomSource() {
+  const name = prompt('Name this publication (e.g. "Reasoning Book", "Draw Close to God"):');
+  if(!name || !name.trim()) return;
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.pdf';
+  input.onchange = async function(e) {
+    const file = e.target.files[0]; if(!file) return;
+    const id = 'custom_' + Date.now();
+    const pw=document.getElementById('progWrap'), pf=document.getElementById('progFill'), pl=document.getElementById('progLabel');
+    pw.style.display='block'; pl.textContent='Loading ' + name + '...'; pf.style.width='0%';
+    try {
+      await new Promise(r=>setTimeout(r,50));
+      const ab = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+      const total = pdf.numPages;
+      const CHUNK = 30;
+      let chunks = [];
+      for(let i=1;i<=total;i++){
+        const page=await pdf.getPage(i);
+        const ct=await page.getTextContent({normalizeWhitespace:true});
+        chunks.push(extractPageText(ct.items));
+        pf.style.width=Math.round((i/total)*100)+'%';
+        pl.textContent='Reading page '+i+' of '+total+'...';
+        if(i%CHUNK===0) await new Promise(r=>setTimeout(r,0));
+      }
+      pl.textContent='Saving...';
+      await new Promise(r=>setTimeout(r,0));
+      const text = fixSpaced(chunks.join('\n'));
+      if(db) await dbSet(id, text);
+      customSources.push({id:id, name:name.trim(), text:text});
+      const meta = JSON.parse(localStorage.getItem('ssCustomMeta')||'[]');
+      meta.push({id:id, name:name.trim()});
+      localStorage.setItem('ssCustomMeta', JSON.stringify(meta));
+      pl.textContent = '\u2713 ' + name + ' loaded and saved';
+      updateCustomCount();
+      renderCustomSrcList();
+    } catch(err){pl.textContent='Error loading PDF.';console.error(err);}
+  };
+  input.click();
+}
+
+async function loadCustomSourcesFromDB() {
+  const meta = JSON.parse(localStorage.getItem('ssCustomMeta')||'[]');
+  for(const s of meta) {
+    try {
+      const text = await dbGet(s.id);
+      if(text) customSources.push({id:s.id, name:s.name, text:text});
+    } catch(e) { console.warn('Could not load custom source', s.name, e); }
+  }
+  updateCustomCount();
+  renderCustomSrcList();
+}
+
+function deleteCustomSource(id) {
+  if(!confirm('Remove this publication from your library?')) return;
+  customSources = customSources.filter(s=>s.id!==id);
+  const meta = JSON.parse(localStorage.getItem('ssCustomMeta')||'[]').filter(s=>s.id!==id);
+  localStorage.setItem('ssCustomMeta', JSON.stringify(meta));
+  if(db) { try { const tx=db.transaction('src','readwrite');tx.objectStore('src').delete(id); } catch(e){} }
+  updateCustomCount();
+  renderCustomSrcList();
+}
+
+function getCustomContext(query, maxPerSource=700) {
+  if(!customSources.length) return '';
+  const words = query.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+  const score = function(text) { let s=0; const tl=text.toLowerCase(); for(const w of words) if(tl.includes(w)) s++; return s; };
+  const getSnippet = function(text, max) {
+    const chunks=[]; const size=500;
+    for(let i=0;i<text.length;i+=size) chunks.push(text.slice(i,i+size));
+    chunks.sort(function(a,b){return score(b)-score(a);});
+    return chunks.slice(0,2).join('\n---\n').substring(0,max);
+  };
+  const results = customSources.map(function(s) {
+    const snippet = getSnippet(s.text, maxPerSource);
+    return {name:s.name, snippet:snippet, score:score(snippet)};
+  }).filter(function(s){return s.score>0 || customSources.length<=2;})
+    .sort(function(a,b){return b.score-a.score;})
+    .slice(0,4);
+  return results.map(function(s){return '['+s.name+']\n'+s.snippet;}).join('\n\n---\n\n');
+}
+
+// ── UTILS ──
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// ── INIT ──
+if(apiKey){const b=document.getElementById('apiBtn');b.classList.add('set');b.textContent='✓ API Key Set';}
+renderNotes();
+renderSavedDiscourses();
+initDB();
+</script>
+</body>
+</html>
